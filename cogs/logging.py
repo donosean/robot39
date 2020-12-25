@@ -23,14 +23,17 @@ class Logging(commands.Cog):
             else:
                 msg_content = "No content or message contains link/embed"
 
+            #create embed to post in logs channel
             embed=discord.Embed(title="Message Deleted", color=0x80ffff)
-            embed.add_field(name="Message was posted:", value="by %s\nin %s" % (message.author, message.channel.name), inline=False)
+            embed.add_field(name="Message was posted:", value="by %s\nin %s" % (message.author.mention, message.channel.mention), inline=False)
             embed.add_field(name="Mesage content:", value=msg_content, inline=False)
             embed.set_thumbnail(url=message.author.avatar_url)
 
+            #fetch logs channel and send embed
             logs_channel = self.bot.get_channel(self.logs_channel_id)
             await logs_channel.send(embed=embed)
 
+            #also repost any embeds contained in the deleted message
             if len(message.embeds) > 0:
                 await logs_channel.send("**Deleted embeds:**")
                 for embed in message.embeds:
