@@ -6,12 +6,21 @@ class Logging(commands.Cog):
     ### !--- INIT ---! ###
     def __init__(self, bot):
         self.bot = bot
+        ### !-- CONFIGURABLE ---! ###
         self.logs_channel_id = 788552632855822377
         self.log_events = {
             "ban":True,
             "delete":True,
-            "edit":True
+            "edit":True,
+            "join":True
         }
+        ### !--- • ---! ###
+
+        self.invites = None
+        self.logging_loop.start()
+
+    def cog_unload(self):
+        self.logging_loop.cancel()
 
     ### !--- EVENTS ---! ###
     @commands.Cog.listener()
@@ -30,6 +39,40 @@ class Logging(commands.Cog):
                 #fetch logs channel and send embed
                 logs_channel = self.bot.get_channel(self.logs_channel_id)
                 await logs_channel.send(embed=embed)
+
+    @commands.Cog.listener()
+    async def on_member_join(self, member):
+        if self.log_events["join"]:
+            #fetch current invites of server after member join
+            invites_after_join = await member.guild.invites()
+
+            #finds the invite in invites_after that has more uses than its invites_before counterpart
+            def find_used_invite(invites_before, invites_after):
+                for invite in invites_before:
+                    for invite2 in invites_after:
+                        if (invite.code == invite2.code) and (invite.uses < invite2.uses):
+                            return invite2
+                
+                #return False if invites are somehow identical
+                return False
+
+            invite_used = find_used_invite(self.invites, invites_after_join)
+
+            #print to terminal
+            print("Member Joined -- %s invited by %s" % (member, invite_used.inviter))
+
+            #create embed to post in logs channel
+            embed=discord.Embed(title="Member Joined", color=0x80ffff)
+            embed.add_field(name="Member:", value=member.mention, inline=False)
+            embed.add_field(name="Invited by:", value=invite_used.inviter.mention, inline=False)
+            embed.add_field(name="Invite code:", value=invite_used.code, inline=False)
+            embed.set_thumbnail(url=member.avatar_url)
+
+            #fetch logs channel and send embed
+            logs_channel = self.bot.get_channel(self.logs_channel_id)
+            await logs_channel.send(embed=embed)
+
+            self.invites = invites_after_join
 
     @commands.Cog.listener()
     async def on_message_edit(self, before, after):
@@ -104,6 +147,16 @@ class Logging(commands.Cog):
             toggle_message = "logging: %s set to %s" % (toggle, self.log_events[toggle]) 
             await ctx.send(toggle_message)
             print(toggle_message)
+
+    ### !--- TASKS ---! ###
+    @tasks.loop(minutes=1.0)
+    async def logging_loop(self):
+        self.invites = await self.bot.guilds[0].invites()
+        self.logging_loop.stop()
+
+    @logging_loop.before_loop
+    async def before_logging_loop(self):
+        await self.bot.wait_until_ready()
 
 ### !--- SETUP ---! ###
 def setup(bot):
