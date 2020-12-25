@@ -23,8 +23,8 @@ class Logging(commands.Cog):
 
                 #create embed to post in logs channel
                 embed=discord.Embed(title="Member Banned", color=0x80ffff)
-                embed.add_field(name="Member:", value="by %s\nin %s" % member.mention, inline=False)
-                embed.add_field(name="Banned by:", value=entry.user, inline=False)
+                embed.add_field(name="Member:", value=member.mention, inline=False)
+                embed.add_field(name="Banned by:", value=entry.user.mention, inline=False)
                 embed.set_thumbnail(url=member.avatar_url)
 
                 #fetch logs channel and send embed
@@ -33,7 +33,7 @@ class Logging(commands.Cog):
 
     @commands.Cog.listener()
     async def on_message_edit(self, before, after):
-        if self.log_events["edit"]:
+        if (self.log_events["edit"]) and (not before.author.bot):
             #print deleted message + author to log
             print("Message Edited -- %s in %s" % (before.author, before.channel.name))
 
