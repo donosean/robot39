@@ -1,0 +1,1 @@
+[Paste your Discord bot token here and rename to token.txt]
