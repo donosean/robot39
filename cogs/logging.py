@@ -12,7 +12,8 @@ class Logging(commands.Cog):
             "ban":True,
             "delete":True,
             "edit":True,
-            "join":True
+            "join":True,
+            "leave":True
         }
         ### !--- • ---! ###
 
@@ -73,6 +74,21 @@ class Logging(commands.Cog):
             await logs_channel.send(embed=embed)
 
             self.invites = invites_after_join
+
+    @commands.Cog.listener()
+    async def on_member_remove(self, member):
+        if self.log_events["leave"]:
+            #print to terminal
+            print("Member Left -- %s" % member)
+
+            #create embed to post in logs channel
+            embed=discord.Embed(title="Member Left", color=0x80ffff)
+            embed.add_field(name="Member:", value=member.mention, inline=False)
+            embed.set_thumbnail(url=member.avatar_url)
+
+            #fetch logs channel and send embed
+            logs_channel = self.bot.get_channel(self.logs_channel_id)
+            await logs_channel.send(embed=embed)
 
     @commands.Cog.listener()
     async def on_message_edit(self, before, after):
