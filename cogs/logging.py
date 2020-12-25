@@ -3,12 +3,12 @@ from discord.ext import commands, tasks
 
 class Logging(commands.Cog):
 
-    #---INIT---
+    ### !--- INIT ---! ###
     def __init__(self, bot):
         self.bot = bot
         self.logs_channel_id = 788552632855822377
 
-    #---EVENTS---
+    ### !--- EVENTS ---! ###
     @commands.Cog.listener()
     async def on_message_delete(self, message):
         #print deleted message + author to log
@@ -36,13 +36,13 @@ class Logging(commands.Cog):
                 for embed in message.embeds:
                     await logs_channel.send(embed=embed)
     
-    #---CHECK & COMMANDS---
+    ### !--- CHECKS & COMMANDS ---! ###
     async def cog_check(self, ctx):
         if await ctx.bot.is_owner(ctx.author):
             return True
         else:
             raise commands.NotOwner('You do not own this bot.')
 
-#---SETUP---
+### !--- SETUP ---! ###
 def setup(bot):
     bot.add_cog(Logging(bot))

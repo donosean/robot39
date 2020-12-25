@@ -3,12 +3,12 @@ from discord.ext import commands, tasks
 
 class Events(commands.Cog):
 
-    #---INIT---
+    ### !--- INIT ---! ###
     def __init__(self, bot):
         self.bot = bot
         self.print_messages = False
 
-    #---EVENTS---
+    ### !--- EVENTS ---! ###
     @commands.Cog.listener()
     async def on_ready(self):
         print("Bot logged in as %s" % self.bot.user)
@@ -36,7 +36,7 @@ class Events(commands.Cog):
         #print all used commands to terminal
         print("%s: %s" %(ctx.message.author, ctx.message.content))
     
-    #---CHECK & COMMANDS---
+    ### !--- CHECKS & COMMANDS ---! ###
     async def cog_check(self, ctx):
         if await ctx.bot.is_owner(ctx.author):
             return True
@@ -48,6 +48,6 @@ class Events(commands.Cog):
         self.print_messages = True if not self.print_messages else False
         print("events: Print messages enabled." if self.print_messages else "events: Print messages disabled.")
 
-#---SETUP---
+### !--- SETUP ---! ###
 def setup(bot):
     bot.add_cog(Events(bot))

@@ -2,24 +2,20 @@
 import discord
 from discord.ext import commands, tasks
 
-#cogs/extensions
+### !--- SETTINGS ---! ###
+intents = discord.Intents.default()
+intents.members = True
+bot = commands.Bot(command_prefix="39!", intents=intents)
+
+### !--- COGS ---! ###
 cogs = [
     'catwalk',
     'duel',
     'events',
     'logging',
     'owner',
-    'train',
     #'welcome'
 ]
-
-### !--- SETTINGS ---! ###
-intents = discord.Intents.default()
-intents.members = True
-
-bot = commands.Bot(command_prefix="39!", intents=intents)
-
-### !--- BOT COMMANDS ---! ###
 
 ### !--- EXECUTION CODE ---! ###
 #load all cogs from cogs[] list

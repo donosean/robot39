@@ -11,11 +11,11 @@ import psycopg2
 
 class Duel(commands.Cog):
 
-    #---INIT---
+    ### !--- INIT ---! ###
     def __init__(self, bot):
         self.bot = bot
 
-        #---CONFIGURABLE---
+        ### !--- CONFIGURABLE ---! ###
         self.guild_id = 253731475751436289
 
         self.rankings_channel = 0
@@ -28,21 +28,18 @@ class Duel(commands.Cog):
 
         self.max_points = 2 #points needed to win
         self.wait_time = 120 #seconds to wait before asking for scores
-        #self.DATABASE_URL = os.environ['DATABASE_URL'] #location of postgreSQL DB
         self.k_value = 50 #k value used in ELO calculations
 
         self.staff_roles = ["Secret Police"] #names of all staff roles to be mentioned/allowed use this cog
-        #---•---
+        ### !--- • ---! ###
 
         self.duels_in_progress = []
         self.duels_enabled = True
-
 
         #read db url from file
         postgres_txt = open("postgres.txt", "r")
         self.DATABASE_URL = postgres_txt.read()
         postgres_txt.close()
-
 
         #db connection code
         try:
@@ -78,7 +75,7 @@ class Duel(commands.Cog):
     async def record_duel(self, win_id, win_points, lose_id, lose_points, change):
         await _duel_misc.record_duel(self, win_id, win_points, lose_id, lose_points, change)
 
-    #---CHECKS & COMMANDS---#
+    ### !--- CHECKS & COMMANDS ---! ###
     @commands.command()
     @commands.guild_only()
     async def register(self, ctx, user: discord.Member = None):
@@ -182,7 +179,7 @@ class Duel(commands.Cog):
         finally:
             cursor.close()
 
-    # DUEL LOGIC + CHALLENGE FUNCTIONS
+    ### !--- DUEL LOGIC & CHALLENGE FUNCTIONS ---! ###
     async def can_duel(self, ctx, player1, player2):
         return await _duel_challenge.can_duel(self, ctx, player1, player2)
     async def issue_challenge(self, ctx, player1, player2):
@@ -295,7 +292,7 @@ class Duel(commands.Cog):
         #unblock channel from future duels
         self.duels_in_progress.remove(ctx.channel.id)
 
-    #---MODERATION COMMANDS---#
+    ### !--- MODERATION ---! ###
     async def is_mod(self, user):
         channel =  self.bot.get_channel(self.rankings_channel)
         staff_roles = [discord.utils.get(channel.guild.roles, name=role) for role in self.staff_roles]
@@ -442,7 +439,7 @@ class Duel(commands.Cog):
             await ctx.send(embed=embed)
     """
 
-    #---BACKGROUND TASKS---
+    ### !--- TASKS ---! ###
     @tasks.loop(minutes=1.0)
     async def duel_loop(self):
         duel_settings = await self.fetch_settings(self.guild_id)
@@ -468,6 +465,6 @@ class Duel(commands.Cog):
     async def before_duel_loop(self):
         await self.bot.wait_until_ready()
 
-#---SETUP---
+### !--- SETUP ---! ###
 def setup(bot):
     bot.add_cog(Duel(bot))

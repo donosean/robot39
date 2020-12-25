@@ -3,7 +3,7 @@ from discord.ext import commands
 
 class Welcome(commands.Cog):
 
-    #---INIT---
+    ### !--- INIT ---! ###
     def __init__(self, bot):
         self.bot = bot
 
@@ -19,13 +19,13 @@ class Welcome(commands.Cog):
         self.final_message =\
         "Thanks for answering! Your answers will be reviewed by one of our staff shortly. Please read the rules above while you wait.\n%s"
 
-        #---CONFIGURABLE---
+        ### !--- CONFIGURABLE ---! ###
         self.welcome_channel_id = 413887244407930900 #get this by right clicking on your #welcome channel and clicking "Copy ID"
         self.rules_message_id = 785146157218791424 #rules message to not delete on channel purge
         self.staff_roles = ["Secret Police", "Assistant"] #names of all staff roles to be mentioned/allowed use this cog
         self.new_member_role = "Tier 0" #name of role to grant new members
 
-    #---EVENTS---
+    ### !--- EVENTS ---! ###
     @commands.Cog.listener()
     async def on_member_join(self, member):
         print("%s joined the server." % member)
@@ -56,7 +56,7 @@ class Welcome(commands.Cog):
         else:
             await welcome_channel.send("Hi there, %s! Do you want to be my bot friend?")
 
-    #---CHECK & COMMANDS---
+    ### !--- CHECKS & COMMANDS ---! ###
     #locks any commands of this cog to members with roles listed in self.staff_roles
     async def cog_check(self, ctx):
         welcome_channel =  self.bot.get_channel(self.welcome_channel_id)
@@ -91,6 +91,6 @@ class Welcome(commands.Cog):
         await welcome_channel.purge(after=rules_message) #purge everything except rules message
         print("Purge complete.")
 
-#---SETUP---
+### !--- SETUP ---! ###
 def setup(bot):
     bot.add_cog(Welcome(bot))

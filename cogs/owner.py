@@ -3,11 +3,11 @@ from discord.ext import commands
 
 class Owner(commands.Cog):
 
-    #---INIT---
+    ### !--- INIT ---! ###
     def __init__(self, bot):
         self.bot = bot
 
-    #---CHECK & COMMANDS---
+    ### !--- CHECKS & COMMANDS ---! ###
     async def cog_check(self, ctx):
         if await ctx.bot.is_owner(ctx.author):
             return True
@@ -60,6 +60,6 @@ class Owner(commands.Cog):
         for emoji in ctx.guild.emojis:
             print(emoji)
 
-#---SETUP---
+### !--- SETUP ---! ###
 def setup(bot):
     bot.add_cog(Owner(bot))

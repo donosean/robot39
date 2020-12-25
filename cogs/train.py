@@ -3,14 +3,14 @@ from discord.ext import commands
 
 class Train(commands.Cog):
 
-    #---INIT---
+    ### !--- INIT ---! ###
     def __init__(self, bot):
         self.bot = bot
 
-        #---CONFIGURABLE---
+        ### !--- CONFIGURABLE ---! ###
         self.train_channel_id = 765064651796119552 #get this by right clicking on your #welcome channel and clicking "Copy ID"
 
-    #---EVENTS---
+    ### !--- EVENTS ---! ###
     @commands.Cog.listener()
     async def on_message(self, message):
         #ignore messages sent by this or other bots
@@ -20,7 +20,7 @@ class Train(commands.Cog):
         train_channel = self.bot.get_channel(self.train_channel_id)
         print(train_channel.last_message_id)
 
-    #---COMMANDS---
+    ### !--- CHECKS & COMMANDS ---! ###
     @commands.command()
     @commands.is_owner()
     @commands.dm_only()
@@ -29,6 +29,6 @@ class Train(commands.Cog):
         async for message in channel.history(limit=1):
             print(message.content)
 
-#---SETUP---
+### !--- SETUP ---! ###
 def setup(bot):
     bot.add_cog(Train(bot))

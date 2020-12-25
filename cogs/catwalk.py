@@ -5,12 +5,12 @@ from datetime import datetime, date
 
 class Catwalk(commands.Cog):
 
-    #---INIT---
+    ### !--- INIT ---! ###
     def __init__(self, bot):
         self.bot = bot
         self.last_reminder_msg = None
 
-        #CONFIGURABLE
+        ### !--- CONFIGURABLE ---! ###
         self.catwalk_weekdays = [2, 5] #weekdays starting at 0 = Monday
         self.catwalk_hour = 15 #hour of catwalk in UTC (10:00am EST)
         self.reminder_hours = [3, 12, 14] #hours to send reminder at in UTC
@@ -32,7 +32,7 @@ class Catwalk(commands.Cog):
             await self.last_reminder_msg.delete()
             print("catwalk: Deleted previous reminder message.")
 
-    #---TASKS---
+    ### !--- TASKS ---! ###
     @tasks.loop(minutes=1.0)
     async def catwalk_loop(self):
         time = datetime.today().now()
@@ -65,7 +65,7 @@ class Catwalk(commands.Cog):
     async def before_catwalk_loop(self):
         await self.bot.wait_until_ready()
 
-    #---CHECK & COMMANDS---
+    ### !--- CHECKS & COMMANDS ---! ###
     #locks any commands of this cog to members with roles listed in self.staff_roles
     async def cog_check(self, ctx):
         catwalk_channel =  self.bot.get_channel(self.catwalk_channel_id)
@@ -88,6 +88,6 @@ class Catwalk(commands.Cog):
             await ctx.send("Catwalk reminders enabled.")
             print("catwalk: Reminders enabled.")
 
-#---SETUP---
+### !--- SETUP ---! ###
 def setup(bot):
     bot.add_cog(Catwalk(bot))
