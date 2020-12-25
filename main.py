@@ -8,6 +8,7 @@ intents.members = True
 bot = commands.Bot(command_prefix="39!", intents=intents)
 
 ### !--- COGS ---! ###
+"""
 cogs = [
     'catwalk',
     'duel',
@@ -16,6 +17,9 @@ cogs = [
     'owner',
     #'welcome'
 ]
+"""
+cogs_txt = open("cogs.txt", "r")
+cogs = cogs_txt.read().splitlines()
 
 ### !--- EXECUTION CODE ---! ###
 #load all cogs from cogs[] list
