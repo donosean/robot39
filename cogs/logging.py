@@ -106,14 +106,20 @@ class Logging(commands.Cog):
 
             #check for empty message content due to embeds not allowing empty fields
             if len(before.content) > 0:
-                msg_content = before.content
+                msg_content_before = before.content
             else:
-                msg_content = "No content or message contains link/embed"
+                msg_content_before = "No content or message contains link/embed"
+            
+            if len(after.content) > 0:
+                msg_content_after = after.content
+            else:
+                msg_content_after = "No content or message contains link/embed"
 
             #create embed to post in logs channel
             embed=discord.Embed(title="Message Edited", color=0x80ffff)
             embed.add_field(name="Message was posted:", value="by %s\nin %s" % (before.author.mention, before.channel.mention), inline=False)
-            embed.add_field(name="Mesage content:", value=msg_content, inline=False)
+            embed.add_field(name="Before edit:", value=msg_content_before, inline=False)
+            embed.add_field(name="After edit:", value=msg_content_after, inline=False)
             embed.add_field(name="Jump to message:", value="[[Click Here]](%s)" % before.jump_url, inline=False)
             embed.set_thumbnail(url=before.author.avatar_url)
 
