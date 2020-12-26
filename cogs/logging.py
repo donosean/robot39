@@ -25,6 +25,14 @@ class Logging(commands.Cog):
 
     ### !--- EVENTS ---! ###
     @commands.Cog.listener()
+    async def on_invite_create(self, invite):
+        self.logging_loop.start()
+
+    @commands.Cog.listener()
+    async def on_invite_delete(self, invite):
+        self.logging_loop.start()
+
+    @commands.Cog.listener()
     async def on_member_ban(self, guild, member):
         if self.log_events["ban"]:
             #fetch ban event from audit logs
