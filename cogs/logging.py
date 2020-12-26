@@ -106,6 +106,7 @@ class Logging(commands.Cog):
             embed=discord.Embed(title="Message Edited", color=0x80ffff)
             embed.add_field(name="Message was posted:", value="by %s\nin %s" % (before.author.mention, before.channel.mention), inline=False)
             embed.add_field(name="Mesage content:", value=msg_content, inline=False)
+            embed.add_field(name="Jump to message:", value="[[Click Here]](%s)" % before.jump_url, inline=False)
             embed.set_thumbnail(url=before.author.avatar_url)
 
             #fetch logs channel and send embed
