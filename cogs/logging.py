@@ -33,8 +33,8 @@ class Logging(commands.Cog):
     async def on_invite_create(self, invite):
         await self.update_invites_cache()
         if self.log_events["invite"]:
-            print("Invite created -- %s by %s" % (invite.code, invite.inviter)) 
-            print(type(invite.inviter))
+            print("Invite created -- %s by %s" % (invite.code, invite.inviter))
+            
             #create embed to post in logs channel
             embed=discord.Embed(title="Invite Created", color=0x80ffff)
             embed.add_field(name="Code:", value=invite.code, inline=False)
@@ -118,7 +118,7 @@ class Logging(commands.Cog):
 
     @commands.Cog.listener()
     async def on_message_edit(self, before, after):
-        if (self.log_events["edit"]) and (not before.author.bot):
+        if (self.log_events["edit"]) and (not before.author.bot) and (not before.content == after.content):
             #print deleted message + author to log
             print("Message Edited -- %s in %s" % (before.author, before.channel.name))
 
