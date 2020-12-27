@@ -3,8 +3,7 @@ import discord
 from discord.ext import commands, tasks
 
 ### !--- SETTINGS ---! ###
-intents = discord.Intents.default()
-intents.members = True
+intents = discord.Intents.all()
 bot = commands.Bot(command_prefix="39!", intents=intents)
 
 ### !--- EXECUTION CODE ---! ###

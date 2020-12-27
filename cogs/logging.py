@@ -12,6 +12,7 @@ class Logging(commands.Cog):
             "ban":True,
             "delete":True,
             "edit":True,
+            "invite":True,
             "join":True,
             "leave":True
         }
@@ -23,14 +24,31 @@ class Logging(commands.Cog):
     def cog_unload(self):
         self.logging_loop.cancel()
 
+    async def update_invites_cache(self):
+        self.invites = await self.bot.guilds[0].invites()
+        print("logging: Invite cache updated")
+
     ### !--- EVENTS ---! ###
     @commands.Cog.listener()
     async def on_invite_create(self, invite):
-        self.logging_loop.start()
+        await self.update_invites_cache()
+        if self.log_events["invite"]:
+            print("Invite created -- %s by %s" % (invite.code, invite.inviter)) 
+            print(type(invite.inviter))
+            #create embed to post in logs channel
+            embed=discord.Embed(title="Invite Created", color=0x80ffff)
+            embed.add_field(name="Code:", value=invite.code, inline=False)
+            embed.add_field(name="Created by:", value=invite.inviter, inline=False)
+            embed.set_thumbnail(url=invite.inviter.avatar_url)
+
+            #fetch logs channel and send embed
+            logs_channel = self.bot.get_channel(self.logs_channel_id)
+            await logs_channel.send(embed=embed)
 
     @commands.Cog.listener()
     async def on_invite_delete(self, invite):
-        self.logging_loop.start()
+        await self.update_invites_cache()
+        print("Invite deleted -- %s" % invite.code)
 
     @commands.Cog.listener()
     async def on_member_ban(self, guild, member):
@@ -182,7 +200,7 @@ class Logging(commands.Cog):
     ### !--- TASKS ---! ###
     @tasks.loop(minutes=1.0)
     async def logging_loop(self):
-        self.invites = await self.bot.guilds[0].invites()
+        await self.update_invites_cache()
         self.logging_loop.stop()
 
     @logging_loop.before_loop
