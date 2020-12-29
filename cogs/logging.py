@@ -192,7 +192,7 @@ class Logging(commands.Cog):
     @commands.command()
     async def logging(self, ctx, toggle:str=None):
         if (not toggle == None) and (toggle in self.log_events):
-            self.log_events[toggle] = True if False else False
+            self.log_events[toggle] = True if self.log_events[toggle] == False else False
             toggle_message = "logging: %s set to %s" % (toggle, self.log_events[toggle]) 
             await ctx.send(toggle_message)
             print(toggle_message)
