@@ -46,7 +46,7 @@ class Events(commands.Cog):
     @commands.command()
     async def messages(self, ctx):
         self.print_messages = True if not self.print_messages else False
-        print("events: Print messages enabled." if self.print_messages else "events: Print messages disabled.")
+        print("events: Printing messages enabled." if self.print_messages else "events: Printing messages disabled.")
 
 ### !--- SETUP ---! ###
 def setup(bot):

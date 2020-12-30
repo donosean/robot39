@@ -16,7 +16,7 @@ class AutoRole(commands.Cog):
         autorole = member.guild.get_role(self.autorole)
         await member.add_roles(autorole)
 
-        print("autorole: %s added to %s" % (autorole.name, member))
+        print("autorole: %s added to %s." % (autorole.name, member))
 
 ### !--- SETUP ---! ###
 def setup(bot):

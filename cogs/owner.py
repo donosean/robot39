@@ -18,30 +18,30 @@ class Owner(commands.Cog):
     async def reload(self, ctx, cog):
         try:
             self.bot.reload_extension("cogs.%s" % cog)
-            print("owner: Reloaded cog: %s" % cog)
-            await ctx.send("Reloaded: %s" % cog)
+            print("owner: Reloaded %s" % cog)
+            await ctx.send("Reloaded %s" % cog)
         except commands.ExtensionNotLoaded:
-            print("owner: Error -- Cog %s could not be reloaded." % cog)
+            print("owner: Error -- %s could not be reloaded." % cog)
             await ctx.send("Unable to reload %s, check the name and try again." % cog)
 
     @commands.command()
     async def load(self, ctx, cog):
         try:
             self.bot.load_extension("cogs.%s" % cog)
-            print("owner: Loaded cog: %s" % cog)
-            await ctx.send("Loaded: %s" % cog)
+            print("owner: Loaded %s" % cog)
+            await ctx.send("Loaded %s" % cog)
         except commands.ExtensionNotLoaded:
-            print("owner: Error -- Cog %s could not be loaded." % cog)
+            print("owner: Error -- %s could not be loaded." % cog)
             await ctx.send("Unable to load %s, check the name and try again." % cog)
 
     @commands.command()
     async def unload(self, ctx, cog):
         try:
             self.bot.unload_extension("cogs.%s" % cog)
-            print("owner: Unloaded cog: %s" % cog)
-            await ctx.send("Unloaded: %s" % cog)
+            print("owner: Unloaded %s" % cog)
+            await ctx.send("Unloaded %s" % cog)
         except commands.ExtensionNotLoaded:
-            print("owner: Error -- Cog %s could not be unloaded." % cog)
+            print("owner: Error -- %s could not be unloaded." % cog)
             await ctx.send("Unable to unload %s, check the name and try again." % cog)
     
     @commands.command() 

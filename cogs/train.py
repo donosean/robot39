@@ -28,7 +28,7 @@ class Train(commands.Cog):
         
         train_channel = self.bot.get_channel(self.train_channel_id)
         await train_channel.send(self.edit_msg % before.author.mention)
-        print("train: Message edited by %s" % before.author.mention)
+        print("train: Message edited by %s." % before.author.mention)
 
     ### !--- CHECKS & COMMANDS ---! ###
     @commands.command()

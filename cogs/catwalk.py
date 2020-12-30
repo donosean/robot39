@@ -62,7 +62,7 @@ class Catwalk(commands.Cog):
                     self.last_reminder_msg = await catwalk_channel.send("%s! The current Catwalk will end in %s hour(s), at 10:00a.m. EST." % (ping_role.mention, (self.catwalk_hour - time.hour)))
                     print("catwalk: Reminder sent at: %s" % time)
 
-            if (time.weekday() + 1) in self.catwalk_weekdays and time.hour == self.catwalk_hour:
+            elif (time.weekday() + 1) in self.catwalk_weekdays and time.hour == self.catwalk_hour:
                 await self.delete_last_reminder()
                 self.last_reminder_msg = await catwalk_channel.send("%s! The current Catwalk will end in 24 hour(s), at 10:00a.m. EST." % ping_role.mention)
                 print("catwalk: Reminder sent at: %s" % time)
