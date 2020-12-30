@@ -120,7 +120,7 @@ class Logging(commands.Cog):
     async def on_message_edit(self, before, after):
         if (self.log_events["edit"]) and (not before.author.bot) and (not before.content == after.content):
             #print deleted message + author to log
-            print("logging: Message edted by %s in %s" % (before.author, before.channel.name))
+            print("logging: Message edited by %s in %s" % (before.author, before.channel.name))
 
             #check for empty message content due to embeds not allowing empty fields
             if len(before.content) > 0:
