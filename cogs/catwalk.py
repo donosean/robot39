@@ -79,8 +79,8 @@ class Catwalk(commands.Cog):
         catwalk_channel = self.bot.get_channel(self.catwalk_channel_id)
         async for message in catwalk_channel.history(limit=1):
             if message.author == self.bot.user:
-                self.last_reminder_msg = message.id
-                print("catwalk: Reminder message found -- %s" % self.last_reminder_msg)
+                self.last_reminder_msg = message
+                print("catwalk: Reminder message found -- %s" % self.last_reminder_msg.id)
         self.last_reminder_finder.stop()
 
     @last_reminder_finder.before_loop
