@@ -81,6 +81,8 @@ class Catwalk(commands.Cog):
             if message.author == self.bot.user:
                 self.last_reminder_msg = message
                 print("catwalk: Reminder message found -- %s" % self.last_reminder_msg.id)
+        if self.last_reminder_msg == None:
+            print("catwalk: No previous reminder message found.")
         self.last_reminder_finder.stop()
 
     @last_reminder_finder.before_loop

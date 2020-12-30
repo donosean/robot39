@@ -84,7 +84,7 @@ class Duel(commands.Cog):
                 player = user
                 uid = user.id
             else:
-                print("%s is not allowed to do that." % ctx.author)
+                print("duel: %s is not allowed to do that." % ctx.author)
                 return
         else:
             player = ctx.author
@@ -98,7 +98,7 @@ class Duel(commands.Cog):
             await ctx.send("You've been registered for duels, %s!" % player.mention)
 
         except psycopg2.Error as e:
-            print("Error registering user %s:\n%s" % (player, e))
+            print("duel: Error registering user %s:\n%s" % (player, e))
             await ctx.send("There was an error registering that user, %s. Are they already registered? If not please PM an admin." % ctx.message.author.mention)
 
         finally:
@@ -314,7 +314,7 @@ class Duel(commands.Cog):
             await ctx.send("User unregistered.")
 
         except psycopg2.Error as e:
-            print("Error unregistering user %s:\n%s" % (user, e))
+            print("duel: Error unregistering user %s:\n%s" % (user, e))
 
         finally:
             cursor.close()
@@ -336,7 +336,7 @@ class Duel(commands.Cog):
             duel = cursor.fetchone()
 
         except psycopg2.OperationalError as e:
-            print("Error fetching duel from database:\n%s" % e)
+            print("duel: Error fetching duel from database:\n%s" % e)
             duel = None
 
         finally:
@@ -384,7 +384,7 @@ class Duel(commands.Cog):
                     await ctx.send("Duel channel added.")
 
                 except psycopg2.OperationalError as e:
-                    print("Error adding duel channel:\n%s" % e)
+                    print("duel: Error adding duel channel:\n%s" % e)
 
                 finally:
                     cursor.close()
@@ -409,7 +409,7 @@ class Duel(commands.Cog):
                 await ctx.send("Duel channel removed.")
 
             except psycopg2.OperationalError as e:
-                print("Error removing duel channel:\n%s" % e)
+                print("duel: Error removing duel channel:\n%s" % e)
 
             finally:
                 cursor.close()

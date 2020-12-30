@@ -28,14 +28,14 @@ class Welcome(commands.Cog):
     ### !--- EVENTS ---! ###
     @commands.Cog.listener()
     async def on_member_join(self, member):
-        print("%s joined the server." % member)
+        print("welcome: %s joined the server." % member)
         welcome_channel =  self.bot.get_channel(self.welcome_channel_id)
 
         if not member.bot:
             #send welcome message
             welcome_channel =  self.bot.get_channel(self.welcome_channel_id)
             await welcome_channel.send(self.welcome_message % member.mention)
-            print("Welcome message sent.")
+            print("welcome: Welcome message sent.")
 
             #check for new member typing confirmation message in welcome channel
             def check(message):
@@ -52,7 +52,7 @@ class Welcome(commands.Cog):
                 staff_mentions += staff_role.mention
 
             await welcome_channel.send(self.final_message % staff_mentions) #send final message to new member & ping staff
-            print("%s has answered the welcome questions, staff pinged." % member)
+            print("welcome: %s has answered the welcome questions, staff pinged." % member)
         else:
             await welcome_channel.send("Hi there, %s! Do you want to be my bot friend?")
 
@@ -78,7 +78,7 @@ class Welcome(commands.Cog):
             await member.add_roles(new_member_role) #add Tier 0 role to member
             await ctx.send("Welcome to the server, %s!" % member.name)
 
-            print("%s has been allowed into the server by %s." % (member, ctx.author))
+            print("welcome: %s has been allowed into the server by %s." % (member, ctx.author))
 
     @commands.command()
     @commands.guild_only()
@@ -87,9 +87,9 @@ class Welcome(commands.Cog):
         welcome_channel =  self.bot.get_channel(self.welcome_channel_id)
         rules_message = await welcome_channel.fetch_message(self.rules_message_id)
         
-        print("Purging welcome...")
+        print("welcome: Purging welcome...")
         await welcome_channel.purge(after=rules_message) #purge everything except rules message
-        print("Purge complete.")
+        print("welcome: Purge complete.")
 
 ### !--- SETUP ---! ###
 def setup(bot):

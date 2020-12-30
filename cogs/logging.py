@@ -33,7 +33,7 @@ class Logging(commands.Cog):
     async def on_invite_create(self, invite):
         await self.update_invites_cache()
         if self.log_events["invite"]:
-            print("Invite created -- %s by %s" % (invite.code, invite.inviter))
+            print("logging: Invite created -- %s by %s" % (invite.code, invite.inviter))
             
             #create embed to post in logs channel
             embed=discord.Embed(title="Invite Created", color=0x80ffff)
@@ -48,14 +48,14 @@ class Logging(commands.Cog):
     @commands.Cog.listener()
     async def on_invite_delete(self, invite):
         await self.update_invites_cache()
-        print("Invite deleted -- %s" % invite.code)
+        print("logging: Invite deleted -- %s" % invite.code)
 
     @commands.Cog.listener()
     async def on_member_ban(self, guild, member):
         if self.log_events["ban"]:
             #fetch ban event from audit logs
             async for entry in guild.audit_logs(action=discord.AuditLogAction.ban, limit=1):
-                print("Member banned -- %s was banned by %s" % (member, entry.user)) 
+                print("logging: Member banned -- %s was banned by %s" % (member, entry.user)) 
 
                 #create embed to post in logs channel
                 embed=discord.Embed(title="Member Banned", color=0x80ffff)
@@ -86,7 +86,7 @@ class Logging(commands.Cog):
             invite_used = find_used_invite(self.invites, invites_after_join)
 
             #print to terminal
-            print("Member Joined -- %s invited by %s" % (member, invite_used.inviter))
+            print("logging: Member Joined -- %s invited by %s" % (member, invite_used.inviter))
 
             #create embed to post in logs channel
             embed=discord.Embed(title="Member Joined", color=0x80ffff)
@@ -105,7 +105,7 @@ class Logging(commands.Cog):
     async def on_member_remove(self, member):
         if self.log_events["leave"]:
             #print to terminal
-            print("Member Left -- %s" % member)
+            print("logging: Member Left -- %s" % member)
 
             #create embed to post in logs channel
             embed=discord.Embed(title="Member Left", color=0x80ffff)
@@ -120,7 +120,7 @@ class Logging(commands.Cog):
     async def on_message_edit(self, before, after):
         if (self.log_events["edit"]) and (not before.author.bot) and (not before.content == after.content):
             #print deleted message + author to log
-            print("Message Edited -- %s in %s" % (before.author, before.channel.name))
+            print("logging: Message Edited -- %s in %s" % (before.author, before.channel.name))
 
             #check for empty message content due to embeds not allowing empty fields
             if len(before.content) > 0:
@@ -155,7 +155,7 @@ class Logging(commands.Cog):
     async def on_message_delete(self, message):
         if self.log_events["delete"]:
             #print deleted message + author to log
-            print("Message Deleted -- %s: %s" % (message.author, message.content))
+            print("logging: Message Deleted -- %s: %s" % (message.author, message.content))
 
             #don't repost messages deleted from logs channel
             if not message.channel.id == self.logs_channel_id:
