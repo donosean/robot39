@@ -9,6 +9,7 @@ class Train(commands.Cog):
 
         ### !--- CONFIGURABLE ---! ###
         self.train_channel_id = 765064651796119552 #get this by right clicking on your #welcome channel and clicking "Copy ID"
+        self.edit_msg = "I sense an edited message... You wouldn't be trying to cheat the train, would you %s?"
 
     ### !--- EVENTS ---! ###
     @commands.Cog.listener()
@@ -17,8 +18,17 @@ class Train(commands.Cog):
         if message.author.bot or not message.channel.id == self.train_channel_id:
             return
         
+        pass
+
+    @commands.Cog.listener()
+    async def on_message_edit(self, before, after):
+        #ignore messages sent by this or other bots
+        if before.author.bot or not before.channel.id == self.train_channel_id:
+            return
+        
         train_channel = self.bot.get_channel(self.train_channel_id)
-        print(train_channel.last_message_id)
+        await train_channel.send(self.edit_msg % before.author.mention)
+        print("train: Message edited by %s" % before.author.mention)
 
     ### !--- CHECKS & COMMANDS ---! ###
     @commands.command()

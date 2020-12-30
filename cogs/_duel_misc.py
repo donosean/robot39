@@ -13,6 +13,7 @@ async def fetch_settings(self, guild_id):
 
     except psycopg2.OperationalError as e:
         print("Error fetching duel settings from database:\n%s" % e)
+        duel_settings = None
 
     finally:
         cursor.close()

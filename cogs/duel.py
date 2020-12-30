@@ -337,6 +337,7 @@ class Duel(commands.Cog):
 
         except psycopg2.OperationalError as e:
             print("Error fetching duel from database:\n%s" % e)
+            duel = None
 
         finally:
             cursor.close()

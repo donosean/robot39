@@ -1,7 +1,7 @@
 import discord
 from discord.ext import commands, tasks
 
-from datetime import datetime, date
+from datetime import datetime
 
 class Catwalk(commands.Cog):
 
@@ -18,6 +18,14 @@ class Catwalk(commands.Cog):
         self.staff_roles = ["Secret Police"] #names of all staff roles to be mentioned/allowed use this cog
         self.ping_role = "Fashionably Late" #role to be pinged with catwalk reminders
 
+        #attempt to fetch last message sent by bot in case of restart
+        try:
+            self.last_reminder_finder.start()
+            print("catwalk: Finding last reminder...")
+        except:
+            print("catwalk: Error starting finder loop.")
+
+        #starts main loop that manages reminders/pings
         try:
             self.catwalk_loop.start()
             print("catwalk: Reminders enabled.")
@@ -25,6 +33,7 @@ class Catwalk(commands.Cog):
             print("catwalk: Error enabling reminders.")
 
     def cog_unload(self):
+        self.last_reminder_finder.cancel()
         self.catwalk_loop.cancel()
     
     async def delete_last_reminder(self):
@@ -65,9 +74,25 @@ class Catwalk(commands.Cog):
     async def before_catwalk_loop(self):
         await self.bot.wait_until_ready()
 
+    @tasks.loop(minutes=1.0)
+    async def last_reminder_finder(self):
+        catwalk_channel = self.bot.get_channel(self.catwalk_channel_id)
+        async for message in catwalk_channel.history(limit=1):
+            if message.author == self.bot.user:
+                self.last_reminder_msg = message.id
+                print("catwalk: Reminder message found -- %s" % self.last_reminder_msg)
+        self.last_reminder_finder.stop()
+
+    @last_reminder_finder.before_loop
+    async def before_last_reminder_finder(self):
+        await self.bot.wait_until_ready()
+
     ### !--- CHECKS & COMMANDS ---! ###
     #locks any commands of this cog to members with roles listed in self.staff_roles
     async def cog_check(self, ctx):
+        if ctx.guild == None and ctx.bot.is_owner(ctx.author):
+            return True
+        
         catwalk_channel =  self.bot.get_channel(self.catwalk_channel_id)
         staff_roles = [discord.utils.get(catwalk_channel.guild.roles, name=role) for role in self.staff_roles]
 
