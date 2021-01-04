@@ -86,7 +86,7 @@ class Logging(commands.Cog):
             invite_used = find_used_invite(self.invites, invites_after_join)
 
             #print to terminal
-            print("logging: Member %s joined via invited from %s" % (member, invite_used.inviter))
+            print("logging: Member %s joined via invite from %s" % (member, invite_used.inviter))
 
             #create embed to post in logs channel
             embed=discord.Embed(title="Member Joined", color=0x80ffff)
