@@ -8,7 +8,7 @@ class Train(commands.Cog):
         self.bot = bot
 
         ### !--- CONFIGURABLE ---! ###
-        self.train_channel_id = 765064651796119552 #get this by right clicking on your #welcome channel and clicking "Copy ID"
+        self.train_channel_id = 775225575127908383 #get this by right clicking on your #welcome channel and clicking "Copy ID"
         self.edit_msg = "I sense an edited message... You wouldn't be trying to cheat the train, would you %s?"
 
     ### !--- EVENTS ---! ###

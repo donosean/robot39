@@ -12,7 +12,7 @@ async def fetch_settings(self, guild_id):
         duel_settings = cursor.fetchone()
 
     except psycopg2.OperationalError as e:
-        print("Error fetching duel settings from database:\n%s" % e)
+        print("duel: Error fetching duel settings from database:\n%s" % e)
         duel_settings = None
 
     finally:
@@ -36,7 +36,7 @@ async def fetch_players(self, uid=None):
         return players
 
     except psycopg2.OperationalError as e:
-        print("Error fetching player(s) from database:\n%s" % e)
+        print("duel: Error fetching player(s) from database:\n%s" % e)
 
     finally:
         cursor.close()
@@ -88,7 +88,7 @@ async def update_points(self, uid, points, player_win):
         cursor.execute(SQL, (points, uid))
 
     except psycopg2.OperationalError as e:
-        print("Error updating player points:\n%s" % e)
+        print("duel: Error updating player points:\n%s" % e)
 
     finally:
         cursor.close()
@@ -104,7 +104,7 @@ async def record_duel(self, win_id, win_points, lose_id, lose_points, change):
             (win_id, win_points, lose_id, lose_points, change))
 
     except psycopg2.Error as e:
-        print("Error recording duel:\n%s" % e)
+        print("duel: Error recording duel:\n%s" % e)
 
     finally:
         cursor.close()

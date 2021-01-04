@@ -214,12 +214,14 @@ class Duel(commands.Cog):
 
         #duel logic starts here
         challenge_id = await self.issue_challenge(ctx, player1, player2)
+        print("duel: %s issued a challenge to %s" % (player1, player2))
 
         if not await self.confirm_duel(ctx, player1, player2, challenge_id):
             #duel timed out or declined
             return
 
         #duel accepted, beginning
+        print("duel: %s accepted the challenge from %s" % (player2, player1))
         await ctx.send("**Beginning Duel:** %s vs %s\n"\
             % (player1.mention, player2.mention)\
             + "First to %s point(s) wins. Priority is Perfects > Percentage > Score."\

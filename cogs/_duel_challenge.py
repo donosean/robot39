@@ -4,38 +4,46 @@ async def can_duel(self, ctx, player1, player2):
     #check if new duels are enabled
     if not self.duels_enabled:
         await ctx.send("New duels are temporarily disabled, most likely due to testing new features. Please go bother Seán if this lasts more than a few minutes.")
+        print("duel: Duels are disabled.")
         return False
 
     #only begin duel in allowed channels
     if ctx.channel.id not in self.duel_channels:
         await ctx.send("Please only use the 39!challenge command in a duel channel, %s." % player1.mention)
+        print("duel: challenge command used outside of valid channel.")
         return False
     
     #one duel per channel
     if ctx.channel.id in self.duels_in_progress:
         await ctx.send("There is already a duel in progress or pending challenge here, %s." % player1.mention)
+        print("duel: Duel already in progress in channel %s" % ctx.channel)
         return False
 
     #various checks to make sure both players are registered and not bots
     if player1 == player2:
         await ctx.send("You can't challenge yourself, %s!" % player1.mention)
+        print("duel: Player %s attempted to challenge themself." % player1)
         return False
 
     if player2 == self.bot.user:
         joke_emoji = self.bot.get_emoji(self.joke_emoji)
         await ctx.send("Oh? You're approaching me? %s" % str(joke_emoji))
+        print("duel: %s???" % player1)
         #no return statement here so next check can run
 
     if player2.bot:
         await ctx.send("You can't challenge a bot, %s!" % player1.mention)
+        print("duel: Player %s challenged a bot." % player1)
         return False
     
     if not await self.is_registered(player1):
         await ctx.send("You must be registered to challenge someone, %s! Please use command 39!register." % player1.mention)
+        print("duel: Player %s is not registered." % player1)
         return False
     
     if not await self.is_registered(player2):
         await ctx.send("%s is not registered, %s! Please ask them to use command 39!register before challenging them." % (str(player2), player1.mention))
+        print("duel: Player %s challenged %s who is not registered." % (player1, player2))
         return False
     
     else:
