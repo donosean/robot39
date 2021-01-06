@@ -494,6 +494,10 @@ class Duel(commands.Cog):
 
         member = self.bot.get_user(payload.user_id)
         if not await self.is_registered(member):
+            channel =  self.bot.get_channel(self.dlc_channel)
+            message = await channel.fetch_message(payload.message_id)
+            await message.remove_reaction(payload.emoji, member)
+            print("duel: %s is not registered, DLC reaction removed." % member)
             return
 
         emoji = str(payload.emoji)
