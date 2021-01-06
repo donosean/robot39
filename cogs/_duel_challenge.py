@@ -1,4 +1,5 @@
 import asyncio
+import secrets
 
 async def can_duel(self, ctx, player1, player2):
     #check if new duels are enabled
@@ -49,14 +50,47 @@ async def can_duel(self, ctx, player1, player2):
     else:
         return True
 
-async def issue_challenge(self, ctx, player1, player2):
+async def get_shared_songs(self, player1, player2):
+    async def get_player_songs(player_dlc):
+        songs = []
+
+        if not player_dlc:
+            return songs
+
+        for song in self.songs:
+            for dlc in player_dlc:
+                if song[dlc] == '✓':
+                    songs.append("%s \ %s" % (song['Eng Title'], song['JP Title']))
+        
+        return songs
+    
+    p1_info = await self.fetch_players(player1.id)
+    p2_info = await self.fetch_players(player2.id)
+
+    p1_songs = await get_player_songs(p1_info[6])
+    p2_songs = await get_player_songs(p2_info[6])
+
+    shared_set = set(p1_songs).intersection(p2_songs)
+    shared_songs = list(shared_set)
+
+    print("duel: Generated list of %s shared song(s) between %s and %s." % (len(shared_songs), player1, player2))
+    return shared_songs
+
+async def get_max_points(self, ctx, duel_type):
+    duel_type = duel_type.lower()
+    return\
+        2 if duel_type == "bo3" else\
+        3 if duel_type == "bo5" else\
+        5 if duel_type == "bo9" else False
+
+async def issue_challenge(self, ctx, player1, player2, duel_type):
     #emoji for reacts
     yes = self.bot.get_emoji(self.yes_emoji)
     no = self.bot.get_emoji(self.no_emoji)
 
     #issue challenge message to player
-    challenge_message = await ctx.send("%s! You've been challenged by %s! React below with %s to accept or %s to decline.\n"\
-        % (player2.mention, player1.mention, str(yes), str(no))\
+    challenge_message = await ctx.send("%s! You've been challenged to a best of %s by %s! React below with %s to accept or %s to decline.\n"\
+        % (player2.mention, duel_type[2:], player1.mention, str(yes), str(no))\
         + "*This challenge will expire in one minute.*")
 
     #add reactions for accept/decline
@@ -115,14 +149,17 @@ async def confirm_duel(self, ctx, player1, player2, challenge_id):
         await challenge_message.remove_reaction(yes, self.bot.user)
         await challenge_message.remove_reaction(no, self.bot.user)
 
-async def begin_round(self, ctx, player1, player2, duel_round):
+async def begin_round(self, ctx, player1, player2, duel_round, shared_songs_list):
     #emoji for reacts
     yes = self.bot.get_emoji(self.yes_emoji)
     
+    #roll a random song from the shared song list
+    rolled_song = secrets.choice(shared_songs_list)
+
     #the player being challenged gets to roll on odd rounds
     duel_message = await ctx.send("**Round #%s**\n" % duel_round\
-        +"%s, it's your turn to roll a song!\nBoth players react with %s below when you're ready to play.\n"\
-        % ((player2.mention if duel_round % 2 == 0 else player1.mention), str(yes))\
+        +"Your song for this round is: %s!\nBoth players react with %s below when you're ready to play.\n"\
+        % (rolled_song, str(yes))\
         + "Countdown will begin upon confirming.\n"\
         + "*You have three minutes to confirm.*")
 
@@ -316,15 +353,21 @@ async def confirm_winner(self, ctx, winner, loser):
         await confirm_message.remove_reaction(no, self.bot.user)
         await confirm_message.remove_reaction(yes, self.bot.user)
 
-async def process_duel_results(self, ctx, winner, loser, p1_score, p2_score):
+async def process_duel_results(self, ctx, winner, loser, duel_max_points=2):
     #fetch player info
     player1 = await self.fetch_players(winner.id)
     player2 = await self.fetch_players(loser.id)
 
+    #set weighting/multipler depending on duel length
+    multiplier = \
+        1 if duel_max_points == 2 else\
+        1.5 if duel_max_points == 3 else\
+        2.5 if duel_max_points == 5 else 1
+
     #calculate new elo
     p1_elo = player1[2]
     p2_elo = player2[2]
-    win_points = await self.calculate_elo(p1_elo, p2_elo)
+    win_points = await self.calculate_elo(p1_elo, p2_elo, multiplier)
 
     p1_new_elo = p1_elo + win_points
     p2_new_elo = p2_elo - win_points

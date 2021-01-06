@@ -60,6 +60,15 @@ class Owner(commands.Cog):
         for emoji in ctx.guild.emojis:
             print(emoji)
 
+    @commands.command()
+    async def add_reaction(self, ctx, react_channel: discord.TextChannel, msg_id: int, react_emoji: str):
+        try:
+            react_msg = await react_channel.fetch_message(msg_id)
+            await react_msg.add_reaction(react_emoji)
+            print("owner: Added reaction to message in %s." % react_channel)
+        except:
+            print("owner: Error adding reaction to specified message.")
+
 ### !--- SETUP ---! ###
 def setup(bot):
     bot.add_cog(Owner(bot))

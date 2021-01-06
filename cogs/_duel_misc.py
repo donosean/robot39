@@ -71,12 +71,12 @@ async def generate_rankings_embed(self, players):
 
     return embed
 
-async def calculate_elo(self, elo1, elo2):
+async def calculate_elo(self, elo1, elo2, multiplier=1):
     power = (elo2 - elo1) / 400
     p1_chance = round(1 / (1 + math.pow(10, power)), 2)
     win_points = int(round((1 - p1_chance) * self.k_value, 0))
 
-    return win_points
+    return round(win_points * multiplier)
 
 async def update_points(self, uid, points, player_win):
     SQL = "UPDATE players SET points = %s"\
@@ -105,6 +105,41 @@ async def record_duel(self, win_id, win_points, lose_id, lose_points, change):
 
     except psycopg2.Error as e:
         print("duel: Error recording duel:\n%s" % e)
+
+    finally:
+        cursor.close()
+
+async def update_dlc(self, user, action:str, dlc:str):
+    #get player info & current DLC settings from db
+    player = await self.fetch_players(user)
+    player_dlc = player[6]
+    member = self.bot.get_user(user)
+
+    #fixes NoneType error if the player currently has no DLC set
+    if not type(player_dlc) == list:
+        if action == 'remove':
+            return
+        player_dlc = []
+    
+    if action == "add":
+        print("duel: DLC %s added to %s." % (dlc, member))
+        if not dlc in player_dlc:
+            player_dlc.append(dlc)
+
+    elif action == "remove":
+        print("duel: DLC %s removed from %s." % (dlc, member))
+        if dlc in player_dlc:
+            player_dlc.remove(dlc)
+    
+    #insert player's new DLC info into db
+    SQL = "UPDATE players SET dlc = %s WHERE member_id = %s"
+    cursor = self.database.cursor()
+
+    try:
+        cursor.execute(SQL, (player_dlc, user))
+
+    except psycopg2.Error as e:
+        print("duel: Error updating player DLC:\n%s" % e)
 
     finally:
         cursor.close()

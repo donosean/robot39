@@ -5,8 +5,8 @@ import cogs._duel_misc as _duel_misc
 import cogs._duel_challenge as _duel_challenge
 
 import asyncio
-import math
-import os
+import ast
+import csv
 import psycopg2
 
 class Duel(commands.Cog):
@@ -20,13 +20,18 @@ class Duel(commands.Cog):
 
         self.rankings_channel = 0
         self.rankings_message = 0
+        self.dlc_channel = 0
         self.yes_emoji = 0
         self.no_emoji = 0
         self.duel_channels = []
+        self.songs = []
         
+        self.dlc_msgs = [
+            796151572396507157,
+            796151578192248852
+        ]
         self.joke_emoji = 412035754613800970
 
-        self.max_points = 2 #points needed to win
         self.wait_time = 120 #seconds to wait before asking for scores
         self.k_value = 50 #k value used in ELO calculations
 
@@ -55,6 +60,26 @@ class Duel(commands.Cog):
             print("duel: Rankings/settings updates enabled.")
         except:
             print("duel: Error enabling rankings/settings updates.")
+        
+        #read song info from csv
+        try:
+            with open('song_data.csv', newline='', encoding='utf-8') as songs_file:
+                reader = csv.DictReader(songs_file)
+                for row in reader:
+                    self.songs.append(row)
+            print("duel: Info loaded for %s song(s)." % len(self.songs))
+        except:
+            print("duel: Error reading song data from song_data.csv.")
+        
+        #read dictionary of DLC packs + emoji equivalents to dict
+        try:
+            dlc_dict_txt = open('dlc_dict.txt', 'r', encoding='utf-8')
+            dlc_dict_content = dlc_dict_txt.read()
+            self.dlc_dict = ast.literal_eval(dlc_dict_content)
+            dlc_dict_txt.close()
+            print("duel: DLC dictionary read from dlc_dict.txt.")
+        except:
+            print("duel: Error reading DLC dictionary from dlc_dict.txt.")
 
     def cog_unload(self):
         self.duel_loop.cancel()
@@ -68,12 +93,14 @@ class Duel(commands.Cog):
         return await _duel_misc.is_registered(self, member)
     async def generate_rankings_embed(self, players):
         return await _duel_misc.generate_rankings_embed(self, players)
-    async def calculate_elo(self, elo1, elo2):
-        return await _duel_misc.calculate_elo(self, elo1, elo2)
+    async def calculate_elo(self, elo1, elo2, multiplier):
+        return await _duel_misc.calculate_elo(self, elo1, elo2, multiplier)
     async def update_points(self, uid, points, player_win):
         await _duel_misc.update_points(self, uid, points, player_win)
     async def record_duel(self, win_id, win_points, lose_id, lose_points, change):
         await _duel_misc.record_duel(self, win_id, win_points, lose_id, lose_points, change)
+    async def update_dlc(self, user, action, dlc):
+        await _duel_misc.update_dlc(self, user, action, dlc)
 
     ### !--- CHECKS & COMMANDS ---! ###
     @commands.command()
@@ -95,7 +122,7 @@ class Duel(commands.Cog):
 
         try:
             cursor.execute(SQL, (uid,))
-            await ctx.send("You've been registered for duels, %s!" % player.mention)
+            await ctx.send("You've been registered for duels, %s! Please set your owned song packs in the duel DLC channel." % player.mention)
 
         except psycopg2.Error as e:
             print("duel: Error registering user %s:\n%s" % (player, e))
@@ -182,12 +209,16 @@ class Duel(commands.Cog):
     ### !--- DUEL LOGIC & CHALLENGE FUNCTIONS ---! ###
     async def can_duel(self, ctx, player1, player2):
         return await _duel_challenge.can_duel(self, ctx, player1, player2)
-    async def issue_challenge(self, ctx, player1, player2):
-        return await _duel_challenge.issue_challenge(self, ctx, player1, player2)
+    async def get_shared_songs(self, player1, player2):
+        return await _duel_challenge.get_shared_songs(self, player1, player2)
+    async def get_max_points(self, ctx, duel_type):
+        return await _duel_challenge.get_max_points(self, ctx, duel_type)
+    async def issue_challenge(self, ctx, player1, player2, duel_type):
+        return await _duel_challenge.issue_challenge(self, ctx, player1, player2, duel_type)
     async def confirm_duel(self, ctx, player1, player2, challenge_id):
         return await _duel_challenge.confirm_duel(self, ctx, player1, player2, challenge_id)
-    async def begin_round(self, ctx, player1, player2, duel_round):
-        return await _duel_challenge.begin_round(self, ctx, player1, player2, duel_round)
+    async def begin_round(self, ctx, player1, player2, duel_round, shared_songs_list):
+        return await _duel_challenge.begin_round(self, ctx, player1, player2, duel_round, shared_songs_list)
     async def song_countdown(self, ctx):
         await _duel_challenge.song_countdown(self, ctx)
     async def confirm_scores(self, ctx, player1, player2):
@@ -196,14 +227,14 @@ class Duel(commands.Cog):
         return await _duel_challenge.get_winner(self, ctx, player1, player2)
     async def confirm_winner(self, ctx, winner, loser):
         return await _duel_challenge.confirm_winner(self, ctx, winner, loser)
-    async def process_duel_results(self, ctx, winner, loser, p1_score, p2_score):
-        await _duel_challenge.process_duel_results(self, ctx, winner, loser, p1_score, p2_score)
+    async def process_duel_results(self, ctx, winner, loser, duel_max_points):
+        await _duel_challenge.process_duel_results(self, ctx, winner, loser, duel_max_points)
 
     @commands.command()
     @commands.guild_only()
-    async def challenge(self, ctx, player2: discord.Member):
+    async def challenge(self, ctx, player2: discord.Member, duel_type: str = "bo3"):
         player1 = ctx.message.author
-        
+
         #various checks so that duel can take place
         if not await self.can_duel(ctx, player1, player2):
             #duel checks failed
@@ -213,19 +244,33 @@ class Duel(commands.Cog):
         self.duels_in_progress.append(ctx.channel.id)
 
         #duel logic starts here
-        challenge_id = await self.issue_challenge(ctx, player1, player2)
-        print("duel: %s issued a challenge to %s" % (player1, player2))
+        duel_max_points = await self.get_max_points(ctx, duel_type)
+        if not duel_max_points:
+            await ctx.send("That's not a valid duel option, %s! Your choices are bo3, bo5, or bo9 for a best of 3, 5, or 9 rounds respectively.\n" % player1.mention\
+                +"Leave this option out to default to a best of 3 duel.")
+            return
+
+        challenge_id = await self.issue_challenge(ctx, player1, player2, duel_type)
+        print("duel: %s issued a %s challenge to %s" % (player1, duel_type.lower(), player2))
 
         if not await self.confirm_duel(ctx, player1, player2, challenge_id):
             #duel timed out or declined
             return
 
         #duel accepted, beginning
+        #get shared songs between both players and end duel if list is empty
+        shared_songs_list = await self.get_shared_songs(player1, player2)
+        if (len(shared_songs_list) == 0) or (type(shared_songs_list) == None):
+            await ctx.send("It seems neither of you have any songs in common to duel with! Please check your settings in the duel DLC channel.")
+            self.duels_in_progress.remove(ctx.channel.id)
+            print("duel: Error, no songs in common between %s and %s." % (player1, player2))
+            return
+
         print("duel: %s accepted the challenge from %s" % (player2, player1))
         await ctx.send("**Beginning Duel:** %s vs %s\n"\
             % (player1.mention, player2.mention)\
             + "First to %s point(s) wins. Priority is Perfects > Percentage > Score."\
-            % self.max_points)
+            % duel_max_points)
         
         #initialising score/round counter variables
         p1_score = 0
@@ -233,9 +278,9 @@ class Duel(commands.Cog):
         duel_round = 1
 
         #duel loop begins here
-        while (p1_score < self.max_points and p2_score < self.max_points):
+        while (p1_score < duel_max_points and p2_score < duel_max_points):
             #begin round and get song rolls, cancel if returns false
-            if not await self.begin_round(ctx, player1, player2, duel_round):
+            if not await self.begin_round(ctx, player1, player2, duel_round, shared_songs_list):
                 #roll timer ran out
                 self.duels_in_progress.remove(ctx.channel.id)
                 return
@@ -249,7 +294,7 @@ class Duel(commands.Cog):
                 #one or both players didn't confirm posting
                 self.duels_in_progress.remove(ctx.channel.id)
                 return
-            
+
             #continue round
             #loop for confirming winner
             while(True):
@@ -282,14 +327,14 @@ class Duel(commands.Cog):
         
         #duel finished, announce winner and update scores/rankings
         await ctx.send("**Duel finished:** %s wins!"\
-            % (player1.mention if p1_score == self.max_points else player2.mention))
+            % (player1.mention if p1_score == duel_max_points else player2.mention))
 
         await self.process_duel_results(
                 ctx,
-                player1 if p1_score == self.max_points else player2,
-                player2 if p1_score == self.max_points else player1,
-                p1_score if p1_score == self.max_points else p2_score,
-                p2_score if p1_score == self.max_points else p1_score)
+                player1 if p1_score == duel_max_points else player2,
+                player2 if p1_score == duel_max_points else player1,
+                duel_max_points
+                )
         
         #unblock channel from future duels
         self.duels_in_progress.remove(ctx.channel.id)
@@ -441,7 +486,33 @@ class Duel(commands.Cog):
 
             await ctx.send(embed=embed)
     """
+    ### !--- EVENTS ---! ###
+    @commands.Cog.listener()
+    async def on_raw_reaction_add(self, payload):
+        if (not payload.message_id in self.dlc_msgs):
+            return
 
+        member = self.bot.get_user(payload.user_id)
+        if not await self.is_registered(member):
+            return
+
+        emoji = str(payload.emoji)
+        if emoji in self.dlc_dict:
+            await self.update_dlc(payload.user_id, 'add', self.dlc_dict[emoji])
+
+    @commands.Cog.listener()
+    async def on_raw_reaction_remove(self, payload):
+        if not payload.message_id in self.dlc_msgs:
+            return
+
+        member = self.bot.get_user(payload.user_id)
+        if not await self.is_registered(member):
+            return
+
+        emoji = str(payload.emoji)
+        if emoji in self.dlc_dict:
+            await self.update_dlc(payload.user_id, 'remove', self.dlc_dict[emoji])
+    
     ### !--- TASKS ---! ###
     @tasks.loop(minutes=1.0)
     async def duel_loop(self):
@@ -452,6 +523,7 @@ class Duel(commands.Cog):
         self.yes_emoji = duel_settings[3]
         self.no_emoji = duel_settings[4]
         self.duel_channels = duel_settings[5]
+        self.dlc_channel = duel_settings[6]
 
         players = await self.fetch_players()
 
