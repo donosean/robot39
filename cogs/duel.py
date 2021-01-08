@@ -1,3 +1,4 @@
+from os import supports_follow_symlinks
 import discord
 from discord.ext import commands, tasks
 
@@ -8,6 +9,7 @@ import asyncio
 import ast
 import csv
 import psycopg2
+import secrets
 
 class Duel(commands.Cog):
 
@@ -36,6 +38,31 @@ class Duel(commands.Cog):
         self.k_value = 50 #k value used in ELO calculations
 
         self.staff_roles = ["Secret Police"] #names of all staff roles to be mentioned/allowed use this cog
+        
+        self.dlc_packs = {
+            'FT FS': 'FT Future Sound',
+            'FT CT': 'FT Colorful Tone',
+            'FT DLC1': 'FT DLC Pack 1',
+            'FT DLC2': 'FT DLC Pack 2',
+            'FT DLC3': 'FT DLC Pack 3',
+            'FT DX': 'FT DX Pack',
+            'FT MM': 'FT MegaMix Pack 1',
+            'FT MM2': 'FT MegaMix Pack 2',
+            'MegaMix': 'MegaMix Base Game',
+            'MM DLC1': 'MM DLC Pack 1',
+            'MM DLC2': 'MM DLC Pack 2',
+            'MM DLC3': 'MM DLC Pack 3',
+            'MM DLC4': 'MM DLC Pack 4',
+            'MM DLC5': 'MM DLC Pack 5',
+            'MM DLC6': 'MM DLC Pack 6',
+            'MM DLC7': 'MM DLC Pack 7',
+            'MM DLC8': 'MM DLC Pack 8',
+            'MM DLC9': 'MM DLC Pack 9',
+            'MM DLC10': 'MM DLC Pack 10',
+            'MM DLC11': 'MM DLC Pack 11',
+            'MM Theme': 'MM Theme Song Pack',
+            'MM Sega': 'MM SEGA Song Pack'
+        }
         ### !--- • ---! ###
 
         self.duels_in_progress = []
@@ -205,6 +232,63 @@ class Duel(commands.Cog):
 
         finally:
             cursor.close()
+
+    @commands.command()
+    @commands.guild_only()
+    async def my_dlc(self, ctx):
+        if not await self.is_registered(ctx.message.author):
+            await ctx.send("You must be registered to view your DLC, %s! Please use command 39!register in a dueling channel." % ctx.message.author.mention)
+        uid = ctx.message.author.id
+        #fetch all player info for embed
+        SQL1 = "SELECT dlc FROM players WHERE member_id = %s"
+        cursor = self.database.cursor()
+
+        try:
+            #fetch player dlc
+            cursor.execute(SQL1, (uid,))
+            dlc_list = (cursor.fetchone())[0]
+
+            #only continue if player actually has DLC set
+            if not dlc_list:
+                await ctx.send("You haven't selected any DLC yet, %s! Please go to the duel DLC channel.")
+
+            dlc_owned = [self.dlc_packs[dlc] for dlc in dlc_list]
+            dlc_for_embed = '\n'.join(sorted(dlc_owned))
+
+            #player info embed
+            embed=discord.Embed(title=str(ctx.message.author), description="Player Games & DLC", color=0x80ffff)
+            embed.add_field(name="Owned:", value=dlc_for_embed, inline=True)
+            embed.set_footer(text="Use command 39!my_dlc to view your own DLC")
+            embed.set_thumbnail(url=ctx.message.author.avatar_url)
+
+            await ctx.send(embed=embed)
+
+        finally:
+            cursor.close()
+    
+    @commands.command()
+    @commands.guild_only()
+    async def roll(self, ctx, player2: discord.Member):
+        player1 = ctx.message.author
+
+        if not await self.is_registered(player1):
+            await ctx.send("You must be registered to duel to use this feature, %s!" % player1)
+            return
+        
+        if not await self.is_registered(player2):
+            await ctx.send("That user isn't registered to duel, %s!" % player1)
+            return
+        
+        shared_songs_list = await self.get_shared_songs(player1, player2)
+        if (len(shared_songs_list) == 0) or (type(shared_songs_list) == None):
+            await ctx.send("It seems neither of you have any songs in common to duel with! Please check your settings in the duel DLC channel.")
+            self.duels_in_progress.remove(ctx.channel.id)
+            print("duel: Error, no songs in common between %s and %s." % (player1, player2))
+            return
+
+        random_song = secrets.choice(shared_songs_list)
+        await ctx.send("Rolled a random song that %s and %s have in common...\nYour random song roll is: **%s**" % (player1, player2, random_song))
+        print("duel: Rolled random song for %s and %s" % (player1, player2))
 
     ### !--- DUEL LOGIC & CHALLENGE FUNCTIONS ---! ###
     async def can_duel(self, ctx, player1, player2):
@@ -470,6 +554,12 @@ class Duel(commands.Cog):
         else:
             self.duels_enabled = True
             await ctx.send("Duels enabled, new duels can now begin.")
+    
+    @commands.command()
+    @commands.is_owner()
+    async def force_win(self, ctx, winner: discord.Member, loser: discord.Member):
+        await self.process_duel_results(ctx, winner, loser, 2)
+        print("duel: Victory forced in favor of %s vs %s." % (winner, loser))
 
     """
     @commands.command()

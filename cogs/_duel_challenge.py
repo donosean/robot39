@@ -158,7 +158,7 @@ async def begin_round(self, ctx, player1, player2, duel_round, shared_songs_list
 
     #the player being challenged gets to roll on odd rounds
     duel_message = await ctx.send("**Round #%s**\n" % duel_round\
-        +"Your song for this round is: %s!\nBoth players react with %s below when you're ready to play.\n"\
+        +"Your song for this round is: **%s**!\nBoth players react with %s below when you're ready to play.\n"\
         % (rolled_song, str(yes))\
         + "Countdown will begin upon confirming.\n"\
         + "*You have three minutes to confirm.*")
