@@ -54,6 +54,21 @@ class Owner(commands.Cog):
             print("owner: Sent message to %s." % channel.name)
         else:
             await ctx.send("Channel not found.")
+
+    @commands.command() 
+    @commands.dm_only()
+    async def reply(self, ctx, channel_id: int, msg_id: int, *msg):    
+        channel = self.bot.get_channel(channel_id)
+        if channel:
+            reply_msg = await channel.fetch_message(msg_id)
+            if reply_msg:
+                message = ' '.join(msg)
+                await reply_msg.reply(message)
+                print("owner: Replied to message by %s in %s." % (reply_msg.author, channel.name))
+            else:
+                await ctx.send("Message not found.")
+        else:
+            await ctx.send("Channel not found.")
     
     @commands.command()
     async def print_emoji(self, ctx):

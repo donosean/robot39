@@ -34,7 +34,7 @@ class Events(commands.Cog):
     @commands.Cog.listener()
     async def on_command(self, ctx):
         #print all used commands to terminal
-        print("%s: %s" %(ctx.message.author, ctx.message.content))
+        print("events: %s used a command: %s" %(ctx.message.author, ctx.message.content))
     
     ### !--- CHECKS & COMMANDS ---! ###
     async def cog_check(self, ctx):
