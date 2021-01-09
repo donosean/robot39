@@ -32,6 +32,7 @@ class Events(commands.Cog):
     @commands.Cog.listener()
     async def on_ready(self):
         print("Bot logged in as %s" % self.bot.user)
+        print("Bot is currently a member of %s server(s)." % len(self.bot.guilds))
 
         #now playing status
         try:
