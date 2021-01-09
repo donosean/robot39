@@ -60,7 +60,10 @@ async def get_shared_songs(self, player1, player2):
         for song in self.songs:
             for dlc in player_dlc:
                 if song[dlc] == '✓':
-                    songs.append("%s \ %s" % (song['Eng Title'], song['JP Title']))
+                    if song['Eng Title'].lower() == song['JP Title'].lower():
+                        songs.append(song['Eng Title'])
+                    else:
+                        songs.append("%s \ %s" % (song['Eng Title'], song['JP Title']))
         
         return songs
     
