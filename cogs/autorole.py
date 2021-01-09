@@ -113,6 +113,11 @@ class AutoRole(commands.Cog):
         if await ctx.bot.is_owner(ctx.author):
             return True
 
+        #or users with admin permissions in their guild
+        elif ctx.author.guild_permissions.administrator:
+            return True
+
+        #and no one else
         else:
             raise commands.NotOwner('autorole: %s does not own this bot.' % ctx.author)
     
