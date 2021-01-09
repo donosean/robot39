@@ -1,15 +1,13 @@
 import discord
 from discord.ext import commands
 
-from datetime import datetime
-
 class Quotes(commands.Cog):
 
     ### !--- INIT ---! ###
     def __init__(self, bot):
         self.bot = bot
         self.staff_roles = ["Secret Police"]
-        self.quotes_channel_id = 765064651796119552
+        self.quotes_channel_id = 797182745050087455
 
     ### !--- CHECKS & COMMANDS ---! ###
     async def cog_check(self, ctx):
