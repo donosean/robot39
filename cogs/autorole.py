@@ -9,11 +9,11 @@ class AutoRole(commands.Cog):
     ### !--- INIT ---! ###
     def __init__(self, bot):
         self.bot = bot
-        
-        ### !--- CONFIGURABLE ---! ###
-        self.autorole_id = 765256868041850911
 
+        #settings will be loaded into this dict
         self.settings = {}
+
+        #file to load settings from
         self.settings_file = "data/autorole.json"
 
         self.load_settings()
