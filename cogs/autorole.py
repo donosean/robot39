@@ -35,6 +35,8 @@ class AutoRole(commands.Cog):
                 except json.JSONDecodeError:
                     print("autorole: Error decoding contents of %s, cannot load cog." % self.settings_file[5:])
                     raise commands.ExtensionFailed
+            
+            print("autorole: Loaded settings for %s server(s)." % len(self.settings))
         
         except OSError:
             #create file if missing
