@@ -49,7 +49,7 @@ class Events(commands.Cog):
 
         #prints all messages sent by users to the console
         if self.print_messages:
-            print("%s in %s: %s" % (message.author, message.channel.name, message.content))
+            print("%s in %s: %s" % (message.author, message.channel, message.content))
 
     ### !--- CHECKS & COMMANDS ---! ###
     async def cog_check(self, ctx):
