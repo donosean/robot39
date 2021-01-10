@@ -11,9 +11,15 @@ class Quotes(commands.Cog):
 
     ### !--- CHECKS & COMMANDS ---! ###
     async def cog_check(self, ctx):
+        #all commands will work for the owner of the bot
         if ctx.guild == None and ctx.bot.is_owner(ctx.author):
             return True
         
+        #or users with admin permissions in their guild
+        elif ctx.author.guild_permissions.administrator:
+            return True
+
+        #or users with the named role in self.staff_roles
         quotes_channel =  self.bot.get_channel(self.quotes_channel_id)
         staff_roles = [discord.utils.get(quotes_channel.guild.roles, name=role) for role in self.staff_roles]
 
