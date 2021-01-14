@@ -548,7 +548,7 @@ class Modules(commands.Cog):
             self.active_drops[message.guild.id] = module_id
 
             #finally, send the message with the new module image in an embed
-            drop_channel = await self.bot.get_channel(self.drop_channel_id)
+            drop_channel = self.bot.get_channel(self.drop_channel_id)
             await drop_channel.send(file=file, embed=embed)
 
 ### !--- SETUP ---! ###
