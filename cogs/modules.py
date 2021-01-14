@@ -230,6 +230,9 @@ class Modules(commands.Cog):
                 cursor.execute(SQL, (player_modules, uid))
             else:
                 cursor.execute(SQL, (player_modules, add_vp, uid))
+            
+            user = self.bot.get_user(uid)
+            print("modules: Added %s and %s VP to %s." % (module_id, add_vp, user))
 
         except psycopg2.Error as e:
             print("modules: Error adding module %s to user:\n%s" % (module_id, e))
@@ -263,6 +266,9 @@ class Modules(commands.Cog):
         cursor = self.database.cursor()
         try:
             cursor.execute(SQL, (player_modules, uid))
+
+            user = self.bot.get_user(uid)
+            print("modules: Removed %s from %s." % (module_id, user))
 
         except psycopg2.Error as e:
             print("modules: Error removing module %s from user:\n%s" % (module_id, e))
@@ -393,6 +399,8 @@ class Modules(commands.Cog):
         await self.add_module_to_player(ctx.author.id, module_id, add_vp = 100)
         await ctx.reply("Redeemed %s! You gained 100 VP." % module_name)
 
+        print("modules: %s redeemed by %s." % (module_id, ctx.author))
+
     #gives module from module id to mentioned player if module is owned
     @commands.command()
     async def give_module(self, ctx, module_id: str, receiving_user: discord.Member):
@@ -434,6 +442,7 @@ class Modules(commands.Cog):
         module_name = module["ENG Name"]
 
         await ctx.reply("You gave %s -- %s to %s." % (module_id, module_name, receiving_user.mention))
+        print("modules: %s given to %s by %s." % (module_id, ctx.author, receiving_user))
     
     #gives random module and medium amount of VP, usable once a day per user
     @commands.command()
@@ -464,6 +473,7 @@ class Modules(commands.Cog):
         #send the embed to the user and mark their daily as completed
         await ctx.send(file=file, embed=embed)        
         await self.mark_daily_as_redeemed(ctx.author.id, today)
+        print("modules: Daily redeemed by %s." % ctx.author)
 
     #displays member profile stats including collection & VP
     @commands.command()
@@ -601,6 +611,8 @@ class Modules(commands.Cog):
             #finally, send the message with the new module image in an embed
             drop_channel = self.bot.get_channel(self.drop_channel_id)
             await drop_channel.send(file=file, embed=embed)
+
+            print("modules: Dropped %s in %s." % (module_id, drop_channel))
 
 ### !--- SETUP ---! ###
 def setup(bot):
