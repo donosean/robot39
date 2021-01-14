@@ -13,12 +13,11 @@ class Modules(commands.Cog):
     ### !--- INIT ---! ###
     def __init__(self, bot):
         self.bot = bot
-        self.modules = {}
-        self.active_drops = {}
-        self.message_count = {}
-        self.player_ids = []
-        self.drop_channel_id = 253731475751436289
 
+        ### !--- CONFIGURABLE ---! ###
+        self.drop_channel_id = 799282021725110282
+        
+        #list of files to load module info from at load
         self.csv_list = [
             'etc',
             'kai',
@@ -29,6 +28,7 @@ class Modules(commands.Cog):
             'rin'
         ]
 
+        #full names of each module set
         self.set_names = {
             'etc': 'Others',
             'kai': 'Kaito',
@@ -39,15 +39,21 @@ class Modules(commands.Cog):
             'rin': 'Rin'
         }
 
+        # empty vars to be filled during runtime
+        self.modules_dict = {}
+        self.active_drops = {}
+        self.message_count = {}
+        self.player_ids = []
+
         #read module info from csv files
         for csv_file in self.csv_list:
             try:
-                with open('modules/%s.csv' % csv_file, newline='', encoding='utf-8') as modules_file:
+                with open('data/modules/%s.csv' % csv_file, newline='', encoding='utf-8') as modules_file:
                     reader = csv.DictReader(modules_file)
-                    self.modules[csv_file] = []
+                    self.modules_dict[csv_file] = []
                     for row in reader:
-                        self.modules[csv_file].append(row)
-                print("modules: Info loaded from %s.csv for %s module(s)." % (csv_file, len(self.modules[csv_file])))
+                        self.modules_dict[csv_file].append(row)
+                print("modules: Info loaded from %s.csv for %s module(s)." % (csv_file, len(self.modules_dict[csv_file])))
             except:
                 print("modules: Error reading modules data from %s.csv." % csv_file)
         
@@ -67,6 +73,7 @@ class Modules(commands.Cog):
         #cache all current user ids from db
         self.update_player_ids()
 
+    ### !--- METHODS ---! ###
     #caches list of currently registered discord user ids to reduce db operations
     def update_player_ids(self):
         SQL = "SELECT member_id from modules;"
@@ -75,8 +82,9 @@ class Modules(commands.Cog):
         try:
             cursor.execute(SQL)
             sql_output = cursor.fetchall()
-            player_ids = [id[0] for id in sql_output]
 
+            #db returns a list of lists, we only want the first element in each one
+            player_ids = [id[0] for id in sql_output]
             self.player_ids = player_ids
 
         except psycopg2.Error as e:
@@ -85,8 +93,57 @@ class Modules(commands.Cog):
         finally:
             cursor.close()
 
+    #splits module id into set and number components, returned as dict
+    async def split_module_id(self, module_id):
+        #in module id 'mik-123':
+        #module_set = 'mik'
+        #module_number = '123'
+        module_set = module_id[0:3]
+        module_number = int(module_id[4:])
+
+        #returns these values in a dictionary
+        module = {
+            'set': module_set,
+            'number': module_number
+        }
+        return module
+
+    #returns a module dict containing all information for a given module id
+    async def fetch_module_info(self, module_id):
+        #split module id into set & number
+        module = await self.split_module_id(module_id)
+
+        #fetch info from self.modules_dict
+        module_info_from_dict = self.modules_dict[module['set']][module['number']-1]
+
+        #add info from self.dict to module variable
+        module['ENG Name'] = module_info_from_dict['ENG Name']
+        module['JP Name'] = module_info_from_dict['JP Name']
+
+        #return completed module variable with all module info
+        return module
+
+    #returns True if module id is in correct format and an actual module id, false otherwise
+    async def is_valid_module_id(self, module_id):
+        #returns false if 4th char in module id isn't a hyphen
+        #or overall module id length isn't between 5 an 7 chars
+        if not module_id[3] == '-'\
+        or not (len(module_id) >=5 and len(module_id) <=7):
+            return False
+
+        #split module id into set and number
+        module = await self.split_module_id(module_id)
+
+        #returns true if module set exists and the module number exists in that set
+        if module['set'] in self.modules_dict\
+        and module['number']-1 <= len (self.modules_dict[module['set']]):
+            return True
+        
+        #returns false otherwise
+        return False
+
     #adds guild member to the player database to start tracking collection
-    async def add_player(self, uid: int):
+    async def add_player_by_uid(self, uid: int):
         #do nothing if user id is already known to be registered
         if uid in self.player_ids:
             return
@@ -96,6 +153,7 @@ class Modules(commands.Cog):
 
         try:
             cursor.execute(SQL, (uid,))
+            #add the uid to player_ids to save having to check in future
             self.player_ids.append(uid)
 
         except psycopg2.Error as e:
@@ -106,7 +164,7 @@ class Modules(commands.Cog):
             cursor.close()
     
     #marks a player's daily as redeemed in db
-    async def mark_daily(self, uid: int, date: str):
+    async def mark_daily_as_redeemed(self, uid: int, date: str):
         #do nothing if uid is not registered
         if not uid in self.player_ids:
             return
@@ -124,7 +182,7 @@ class Modules(commands.Cog):
             cursor.close()
 
     #fetches player info from database by given discord user id
-    async def fetch_player_info(self, uid: int):
+    async def fetch_player_info_by_uid(self, uid: int):
         #return None if user id is known to not be registered
         if not uid in self.player_ids:
             return None
@@ -144,13 +202,13 @@ class Modules(commands.Cog):
             cursor.close()
 
     #adds module card to player collection
-    async def add_module(self, uid: int, module_id, add_vp: int = 0):
+    async def add_module_to_player(self, uid: int, module_id, add_vp: int = 0):
         #registers user if user id is known to not have been
         if not uid in self.player_ids:
-            await self.add_player(uid)
+            await self.add_player_by_uid(uid)
 
         #get player info & current module collection from db
-        player = await self.fetch_player_info(uid)
+        player = await self.fetch_player_info_by_uid(uid)
         player_modules = player[3]
         
         #fixes NoneType error if the player currently has no modules
@@ -180,13 +238,13 @@ class Modules(commands.Cog):
             cursor.close()
 
     #remvoes module card from player collection
-    async def remove_module(self, uid: int, module_id):
+    async def remove_module_from_player(self, uid: int, module_id):
         #registers user if user id is known to not have been
         if not uid in self.player_ids:
-            await self.add_player(uid)
+            await self.add_player_by_uid(uid)
 
         #get player info & current module collection from db
-        player = await self.fetch_player_info(uid)
+        player = await self.fetch_player_info_by_uid(uid)
         player_modules = player[3]
         
         #fixes NoneType error if the player currently has no modules
@@ -215,25 +273,24 @@ class Modules(commands.Cog):
     #rolls a random valid module id
     async def roll_module_id(self):
         #weighting chance to roll each set based on set size
-        random_weighting = [len(self.modules[each_module_set]) for each_module_set in self.csv_list]
+        random_weighting = [len(self.modules_dict[each_module_set]) for each_module_set in self.csv_list]
 
         #gen randon module id
         random_set = random.choices(self.csv_list, weights=random_weighting, k=1)[0]
-        random_module = random.randint(1, len(self.modules[random_set]))
+        random_module = random.randint(1, len(self.modules_dict[random_set]))
 
         #return module id
         module_id = "%s-%s" % (random_set, random_module)
         return module_id
     
     #given module_id returns file containing the module image
-    async def fetch_module(self, module_id):
+    async def get_module_file(self, module_id):
         #split module_id into the set name and module number
-        module_set = module_id[0:3]
-        module_number = int(module_id[4:])
+        module = await self.split_module_id(module_id)
 
         #define strings with path to the module and background image
-        module_image = "modules/%s/%s.png" % (module_set, module_number)
-        card_back = "modules/back-%s.png" % module_set
+        module_image = "data/modules/%s/%s.png" % (module['set'], module['number'])
+        card_back = "data/modules/back-%s.png" % module['set']
 
         #open the two images with Pillow
         bg_image = Image.open(card_back)
@@ -241,7 +298,6 @@ class Modules(commands.Cog):
         
         #paste the module image over the background in realtime
         bg_image.paste(top_image,(0, 0), top_image)
-        #module_card = Image.alpha_composite(bg_image, top_image)
 
         #save the new image to memory
         modified_image = BytesIO()
@@ -254,13 +310,10 @@ class Modules(commands.Cog):
         return file
 
     #given module_id and initialised embed returns module embed to send
-    async def module_embed(self, module_id, embed):
-        #split module_id into the set name and module number
-        module_set = module_id[0:3]
-        module_number = int(module_id[4:])
-        
-        module = self.modules[module_set][module_number-1]
-        
+    async def fill_module_embed(self, module_id, embed):
+        #fetch module info to use in embed
+        module = await self.fetch_module_info(module_id)
+
         #create the embed to post to Discord
         embed.add_field(name=module['ENG Name'], value=module['JP Name'], inline=False)
         embed.set_image(url="attachment://image.png")
@@ -268,18 +321,18 @@ class Modules(commands.Cog):
 
         return embed
 
+    ### !--- COMMANDS ---! ###
     #given module_id sends the module to ctx
     @commands.is_owner()
     @commands.command()
     async def show_module(self, ctx, module_id: str):
         #check for correct module_id format
-        if not module_id[3] == '-'\
-        or not (len(module_id) >=5 and len(module_id) <=7):
+        if not await self.is_valid_module_id(module_id):
             return
     
-        file = await self.fetch_module(module_id)
+        file = await self.get_module_file(module_id)
         embed = embed=discord.Embed(title="Displaying Module", color=0x80ffff)
-        embed = await self.module_embed(module_id, embed)
+        embed = await self.fill_module_embed(module_id, embed)
 
         #finally, send the message with the new module image in an embed
         await ctx.send(file=file, embed=embed)
@@ -289,15 +342,14 @@ class Modules(commands.Cog):
     async def view(self, ctx, module_id: str):
         #register user if not already
         if not ctx.author.id in self.player_ids:
-            await self.add_player(ctx.author.id)
+            await self.add_player_by_uid(ctx.author.id)
         
         #check for correct module_id format
-        if not module_id[3] == '-'\
-        or not (len(module_id) >=5 and len(module_id) <=7):
+        if not await self.is_valid_module_id(module_id):
             return
 
         #fetch player_info and create list of collection
-        player_info = await self.fetch_player_info(ctx.author.id)
+        player_info = await self.fetch_player_info_by_uid(ctx.author.id)
         player_collection = player_info[3]
     
         #check for module id in player collection
@@ -306,9 +358,9 @@ class Modules(commands.Cog):
             return
 
         #continue if found, creating module file and embed to send
-        file = await self.fetch_module(module_id)
+        file = await self.get_module_file(module_id)
         embed = embed=discord.Embed(title="Displaying Module", color=0x80ffff)
-        embed = await self.module_embed(module_id, embed)
+        embed = await self.fill_module_embed(module_id, embed)
 
         #finally, send the message with the new module image in an embed
         await ctx.send(file=file, embed=embed)
@@ -318,7 +370,7 @@ class Modules(commands.Cog):
     async def redeem(self, ctx, module_id: str):
         #register user if not already
         if not ctx.author.id in self.player_ids:
-            await self.add_player(ctx.author.id)
+            await self.add_player_by_uid(ctx.author.id)
 
         #check for active drop
         if not ctx.guild.id in self.active_drops:
@@ -330,37 +382,40 @@ class Modules(commands.Cog):
             await ctx.reply("Incorrect module id!")
             return
 
-        #split module_id into the set name and module number
-        module_set = module_id[0:3]
-        module_number = int(module_id[4:])
-        
-        module = self.modules[module_set][module_number-1]
+        #remove drop from active list
+        del(self.active_drops[ctx.guild.id])
+
+        #get module name for use in reply messsage
+        module = await self.fetch_module_info(module_id)
         module_name = module["ENG Name"]
 
-        await self.add_module(ctx.author.id, module_id, add_vp = 100)
+        #add the module to player collection and reply
+        await self.add_module_to_player(ctx.author.id, module_id, add_vp = 100)
         await ctx.reply("Redeemed %s! You gained 100 VP." % module_name)
-        del(self.active_drops[ctx.guild.id])
 
     #gives module from module id to mentioned player if module is owned
     @commands.command()
     async def give_module(self, ctx, module_id: str, receiving_user: discord.Member):
         #register user if not already
         if not ctx.author.id in self.player_ids:
-            await self.add_player(ctx.author.id)
+            await self.add_player_by_uid(ctx.author.id)
             return
 
         #check for correct module_id format
-        if not module_id[3] == '-'\
-        or not (len(module_id) >=5 and len(module_id) <=7):
+        if not await self.is_valid_module_id(module_id):
             return
 
         #fetch player_info and create list of collection
-        player_info = await self.fetch_player_info(ctx.author.id)
+        player_info = await self.fetch_player_info_by_uid(ctx.author.id)
         player_collection = player_info[3]
     
         #check for module id in player collection or empty collection
         if (not player_collection) or (not module_id in player_collection):
             await ctx.reply("You do not own that module, sorry!")
+            return
+
+        if receiving_user == ctx.author:
+            await ctx.reply("You took the module card out of your left pocket, and moved it into your right. Good job.")
             return
 
         if receiving_user.bot:
@@ -369,28 +424,26 @@ class Modules(commands.Cog):
 
         #register receiving user if not already
         if not receiving_user.id in self.player_ids:
-            await self.add_player(receiving_user.id)
+            await self.add_player_by_uid(receiving_user.id)
 
-        await self.remove_module(ctx.author.id, module_id)
-        await self.add_module(receiving_user.id, module_id)
+        await self.remove_module_from_player(ctx.author.id, module_id)
+        await self.add_module_to_player(receiving_user.id, module_id)
         
-        #split module_id into the set name and module number
-        module_set = module_id[0:3]
-        module_number = int(module_id[4:])
-        
-        module = self.modules[module_set][module_number-1]
+        #get module name for use in reply messsage
+        module = await self.fetch_module_info(module_id)
+        module_name = module["ENG Name"]
 
-        await ctx.reply("You gave %s -- %s to %s." % (module_id, module['ENG Name'], receiving_user.mention))
+        await ctx.reply("You gave %s -- %s to %s." % (module_id, module_name, receiving_user.mention))
     
     #gives random module and medium amount of VP, usable once a day per user
     @commands.command()
     async def daily(self, ctx):
         #register user if not already
         if not ctx.author.id in self.player_ids:
-            await self.add_player(ctx.author.id)
+            await self.add_player_by_uid(ctx.author.id)
 
         #fetch player info and todays day of the month as int
-        player_info = await self.fetch_player_info(ctx.author.id)  
+        player_info = await self.fetch_player_info_by_uid(ctx.author.id)  
         today = str(date.today())
 
         #only continue if daily isn't marked as redeemed
@@ -400,27 +453,27 @@ class Modules(commands.Cog):
 
     	#roll random module and add to collection with daily VP bonus
         module_id = await self.roll_module_id()
-        await self.add_module(ctx.author.id, module_id, add_vp=500)
+        await self.add_module_to_player(ctx.author.id, module_id, add_vp=500)
 
         #prepare embed to show to user
-        file = await self.fetch_module(module_id)
+        file = await self.get_module_file(module_id)
         embed = embed=discord.Embed(title="Daily Redeemed", color=0x80ffff)
-        embed = await self.module_embed(module_id, embed)
+        embed = await self.fill_module_embed(module_id, embed)
         embed.add_field(name="** **", value="You gained 500 VP.")
 
         #send the embed to the user and mark their daily as completed
         await ctx.send(file=file, embed=embed)        
-        await self.mark_daily(ctx.author.id, today)
+        await self.mark_daily_as_redeemed(ctx.author.id, today)
 
     #displays member profile stats including collection & VP
     @commands.command()
     async def modules(self, ctx):
         #register player if not already
         if not ctx.author.id in self.player_ids:
-            await self.add_player(ctx.author.id)
+            await self.add_player_by_uid(ctx.author.id)
 
         #fetch player info incl. modules collection
-        player_info = await self.fetch_player_info(ctx.author.id)
+        player_info = await self.fetch_player_info_by_uid(ctx.author.id)
 
         #convert module collection from list to set to remove duplicates
         collection_set = {}
@@ -443,10 +496,10 @@ class Modules(commands.Cog):
 
         #add field to the embed for each module set
         for module_set in self.csv_list:
-            embed.add_field(name="%s:" % self.set_names[module_set], value="%s/%s" % (collection_counts[module_set], len(self.modules[module_set])), inline=True)
+            embed.add_field(name="%s:" % self.set_names[module_set], value="%s/%s" % (collection_counts[module_set], len(self.modules_dict[module_set])), inline=True)
         
         #count total available modules and % completion
-        total_modules = sum(len(module_set) for module_set in self.modules.values())
+        total_modules = sum(len(module_set) for module_set in self.modules_dict.values())
         collection_percentage = 0 if len(collection_set) == 0\
             else round((len(collection_set) / total_modules) * 100, 2)
 
@@ -461,9 +514,9 @@ class Modules(commands.Cog):
     async def collection(self, ctx, page_number: int = 1):
         #register player if not already
         if not ctx.author.id in self.player_ids:
-            await self.add_player(ctx.author.id)
+            await self.add_player_by_uid(ctx.author.id)
 
-        player_info = await self.fetch_player_info(ctx.author.id)
+        player_info = await self.fetch_player_info_by_uid(ctx.author.id)
         player_collection = player_info[3]
 
         #do nothing if collection is empty
@@ -487,12 +540,7 @@ class Modules(commands.Cog):
         #loop through selected page and form string of module ids + names
         module_list = ""
         for module_id in pages[page_number-1]:
-            #split module id into set and number
-            module_set = module_id[0:3]
-            module_number = int(module_id[4:])
-
-            #fetch module info from memory
-            module = self.modules[module_set][module_number-1]
+            module = await self.fetch_module_info(module_id)
 
             #append module id + name to string that will be part of embed
             module_list += "• %s -- %s\n" % (module_id, module['ENG Name'])
@@ -502,6 +550,7 @@ class Modules(commands.Cog):
         #finally, send list embed
         await ctx.send(embed=embed)
 
+    ### !--- EVENTS ---! ###
     #handles random module drops
     @commands.Cog.listener()
     async def on_message(self, message):
@@ -537,11 +586,13 @@ class Modules(commands.Cog):
             #reset message count upon dropping module
             self.message_count[message.guild.id] = 0
 
-            #fetch a random module
+            #roll random module and fetch file to send
             module_id = await self.roll_module_id()
-            file = await self.fetch_module(module_id)
+            file = await self.get_module_file(module_id)
+
+            #create module embed
             embed = embed=discord.Embed(title="Module Drop", color=0x80ffff)
-            embed = await self.module_embed(module_id, embed)
+            embed = await self.fill_module_embed(module_id, embed)
             embed.add_field(name="** **", value="`39!redeem <module id>` to redeem.", inline=False)
 
             #add to active drops
