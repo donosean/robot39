@@ -3,5 +3,6 @@ catwalk
 duel
 events
 logging
+modules
 owner
 quotes
