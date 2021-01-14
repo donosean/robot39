@@ -89,7 +89,7 @@ class Duel(commands.Cog):
         
         #read song info from csv
         try:
-            with open('song_data.csv', newline='', encoding='utf-8') as songs_file:
+            with open('data/duel/song_data.csv', newline='', encoding='utf-8') as songs_file:
                 reader = csv.DictReader(songs_file)
                 for row in reader:
                     self.songs.append(row)
@@ -99,7 +99,7 @@ class Duel(commands.Cog):
         
         #read dictionary of DLC packs + emoji equivalents to dict
         try:
-            dlc_dict_txt = open('dlc_dict.txt', 'r', encoding='utf-8')
+            dlc_dict_txt = open('data/duel/dlc_dict.txt', 'r', encoding='utf-8')
             dlc_dict_content = dlc_dict_txt.read()
             self.dlc_dict = ast.literal_eval(dlc_dict_content)
             dlc_dict_txt.close()
