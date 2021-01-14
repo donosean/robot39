@@ -1,4 +1,3 @@
-from os import supports_follow_symlinks
 import discord
 from discord.ext import commands, tasks
 
@@ -557,8 +556,12 @@ class Duel(commands.Cog):
     
     @commands.command()
     @commands.is_owner()
-    async def force_win(self, ctx, winner: discord.Member, loser: discord.Member):
-        await self.process_duel_results(ctx, winner, loser, 2)
+    async def force_win(self, ctx, winner: discord.Member, loser: discord.Member, mode: str = None):
+        max_points = 3 if mode == "bo5"\
+            else 5 if mode == "bo9"\
+            else 2
+
+        await self.process_duel_results(ctx, winner, loser, max_points)
         print("duel: Victory forced in favor of %s vs %s." % (winner, loser))
 
     """
