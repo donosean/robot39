@@ -4,5 +4,6 @@ duel
 events
 logging
 modules
+nomimic
 owner
 quotes
