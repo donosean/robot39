@@ -276,16 +276,18 @@ class Modules(commands.Cog):
         print("modules: Removed %s VP from %s." % (amount, user))
 
     #rolls a random valid module id
-    async def roll_module_id(self):
-        #weighting chance to roll each set based on set size
-        random_weighting = [len(self.modules_dict[each_module_set]) for each_module_set in self.csv_list]
-
+    async def roll_module_id(self, module_set: str = None):
+        #roll random set if not specified
+        if not module_set:
+            #weighting chance to roll each set based on set size
+            random_weighting = [len(self.modules_dict[each_module_set]) for each_module_set in self.csv_list]
+            module_set = random.choices(self.csv_list, weights=random_weighting, k=1)[0]
+        
         #gen randon module id
-        random_set = random.choices(self.csv_list, weights=random_weighting, k=1)[0]
-        random_module = random.randint(1, len(self.modules_dict[random_set]))
+        random_module = random.randint(1, len(self.modules_dict[module_set]))
 
         #return module id
-        module_id = "%s-%s" % (random_set, random_module)
+        module_id = "%s-%s" % (module_set, random_module)
         return module_id
     
     #given module_id returns file containing the module image
@@ -620,6 +622,45 @@ class Modules(commands.Cog):
         await ctx.send(file=file, embed=embed)        
         await self.mark_daily_as_redeemed(ctx.author.id, today)
         print("modules: Daily redeemed by %s." % ctx.author)
+
+    #allows players to spend VP to roll a random card and pay extra to specify a set
+    @commands.command(name='purchase', aliases=['buy'])
+    async def purchase(self, ctx, module_set: str = None):
+        #register user if not already
+        if not ctx.author.id in self.player_ids:
+            await self.add_player_by_uid(ctx.author.id)
+
+        #fetch player info
+        player_info = await self.fetch_player_info_by_uid(ctx.author.id)
+        player_points = player_info[2]
+
+        #only continue if player can afford to roll
+        if module_set:
+            if not module_set in self.modules_dict:
+                await ctx.reply("That is not a valid module set!")
+                return
+            vp_cost = 1500
+        else:
+            vp_cost = 1000
+        
+        if player_points < vp_cost:
+            await ctx.reply("You must have at least %s VP to perform that action." % vp_cost)
+            return
+
+    	#roll random module and add to collection with daily VP bonus
+        module_id = await self.roll_module_id(module_set=module_set)
+        await self.add_module_to_player(ctx.author.id, module_id)
+        await self.remove_vp_from_player(ctx.author.id, amount=vp_cost)
+
+        #prepare embed to show to user
+        file = await self.get_module_file(module_id)
+        embed = embed=discord.Embed(title="Rolled Module", color=0x80ffff)
+        embed = await self.fill_module_embed(module_id, embed)
+        embed.add_field(name="** **", value="You spent %s VP." % vp_cost)
+
+        #send the embed to the user
+        await ctx.send(file=file, embed=embed)        
+        print("modules: %s rolled a module." % ctx.author)
 
     #displays member profile stats including collection & VP
     @commands.command()
