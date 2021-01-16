@@ -1,7 +1,15 @@
 import discord
 from discord.ext import commands
 
+from enum import Enum
 from typing import Union
+
+from discord.ext.commands.cog import Cog
+
+class CogAction(Enum):
+    reload = 'reload'
+    load = 'load'
+    unload = 'unload'
 
 class Owner(commands.Cog):
 
@@ -20,17 +28,17 @@ class Owner(commands.Cog):
         print("owner: %s" % text)
 
     #handles reloading, loading and unloading of cogs depending on the command used
-    async def manage_cog(self, ctx, cog: str, action: str):
+    async def manage_cog(self, ctx, cog: str, action: CogAction):
         try:
-            if action == "reload":
+            if action == CogAction.reload:
                 self.bot.reload_extension("cogs.%s" % cog)
                 await self.say(ctx, "Cog '%s' has been reloaded." % cog)
 
-            elif action == "load":
+            elif action == CogAction.load:
                 self.bot.load_extension("cogs.%s" % cog)
                 await self.say(ctx, "Cog '%s' has been loaded" % cog)
 
-            elif action == "unload":
+            elif action == CogAction.unload:
                 self.bot.unload_extension("cogs.%s" % cog)
                 await self.say(ctx, "Cog '%s' has been unloaded" % cog)
         
@@ -50,7 +58,7 @@ class Owner(commands.Cog):
             await self.say(ctx, "Cog '%s' had a setup function error." % cog)
     
     #handles sending a normal message or reply message depending on the command used
-    async def send(self, ctx, channel: Union[int, discord.TextChannel], *msg, msg_id: int = None, reply: bool = False):
+    async def send(self, ctx, channel: Union[int, discord.TextChannel], message, msg_id: int = None, reply: bool = False):
         #fetch channel object if only channel id is given
         if type(channel) == int:
             channel = self.bot.get_channel(channel)
@@ -68,9 +76,6 @@ class Owner(commands.Cog):
 
             except discord.NotFound:
                 await self.say(ctx, "Message not found.")
-
-        #create the message string from what was passed with the command
-        message = ' '.join(msg)
 
         #finally, send the message
         try:
@@ -99,27 +104,31 @@ class Owner(commands.Cog):
     #unloads then re-loads a cog that has been loaded
     @commands.command()
     async def reload_cog(self, ctx, cog: str):
-        await self.manage_cog(ctx, cog, action="reload")
+        await self.manage_cog(ctx, cog, CogAction.reload)
 
     #loads a cog that hasn't been loaded
     @commands.command()
     async def load_cog(self, ctx, cog: str):
-        await self.manage_cog(ctx, cog, action="load")
+        await self.manage_cog(ctx, cog, CogAction.load)
 
     #unloads a cog that has been loaded
     @commands.command()
     async def unload_cog(self, ctx, cog: str):
-        await self.manage_cog(ctx, cog, action="unload")
+        await self.manage_cog(ctx, cog, CogAction.unload)
     
     #sends a message to a channel given by channel id/mention
     @commands.command()
     async def send_message(self, ctx, channel: Union[int, discord.TextChannel], *msg):
-        await self.send(ctx, channel, msg)
+        #create the message string from what was passed with the command
+        message = ' '.join(msg)
+        await self.send(ctx, channel, message)
     
     #sends a reply to a message given by channel id/mention and message id
     @commands.command()
     async def send_reply(self, ctx, channel: Union[int, discord.TextChannel], msg_id: int, *msg):
-        await self.send(ctx, channel, msg, msg_id = msg_id, reply = True)
+        #create the message string from what was passed with the command
+        message = ' '.join(msg)
+        await self.send(ctx, channel, message, msg_id = msg_id, reply = True)
 
     #adds a reaction to a message given by channel mention, message id and emoji as string
     @commands.command()
