@@ -4,6 +4,7 @@ from discord.ext import commands
 import asyncio
 import csv
 from datetime import date
+from enum import Enum
 from io import BytesIO
 from iteration_utilities import duplicates
 from natsort import natsorted
@@ -12,8 +13,15 @@ import psycopg2
 import random
 from typing import Union
 
-class Modules(commands.Cog):
+class DatabaseAction(Enum):
+    add_player = 'add player'
+    mark_daily = 'mark daily'
+    fetch_user = 'fetch user'
+    update_collection = 'update collection'
+    add_vp = 'add vp'
+    remove_vp = 'remove vp'
 
+class Modules(commands.Cog):
     ### !--- INIT ---! ###
     def __init__(self, bot):
         self.bot = bot
@@ -155,25 +163,25 @@ class Modules(commands.Cog):
         return False
 
     #handles database actions needed for other methods below
-    async def database_action(self, action: str, uid: int, value: Union[str, list, int] = None):
+    async def database_action(self, action: DatabaseAction, uid: int, value: Union[str, list, int] = None):
         #predefine variables
         SQL = ""
         data = (value, uid)
 
         #define SQL query and data depending on action
-        if action == "add_player":
+        if action == DatabaseAction.add_player:
             SQL = "INSERT INTO modules (member_id, points) VALUES (%s, 0);"
             data = (uid,)
-        elif action == "mark_daily":
+        elif action == DatabaseAction.mark_daily:
             SQL = "UPDATE modules SET last_daily = %s WHERE member_id = %s;"
-        elif action == "fetch_user":
+        elif action == DatabaseAction.fetch_user:
             SQL = "SELECT * FROM modules WHERE member_id = %s;"
             data = (uid,)
-        elif action == "update_collection":
+        elif action == DatabaseAction.update_collection:
             SQL = "UPDATE modules SET collection = %s WHERE member_id = %s"
-        elif action == "add_vp":
+        elif action == DatabaseAction.add_vp:
             SQL = "UPDATE modules SET points = points + %s WHERE member_id = %s"
-        elif action == "remove_vp":
+        elif action == DatabaseAction.remove_vp:
             SQL = "UPDATE modules SET points = points - %s WHERE member_id = %s"
         
         #execute database action
@@ -182,10 +190,10 @@ class Modules(commands.Cog):
             cursor.execute(SQL, data)
 
             #further actions depending on context
-            if action == "add_player":
+            if action == DatabaseAction.add_player:
                 #add the uid to player_ids to save having to check in future
                 self.player_ids.append(uid)
-            elif action == "fetch_user":
+            elif action == DatabaseAction.fetch_user:
                 #returns player info fetched from db
                 return cursor.fetchone()
 
@@ -197,7 +205,7 @@ class Modules(commands.Cog):
 
     #adds guild member to the player database to start tracking collection
     async def add_player_by_uid(self, uid: int):
-        await self.database_action(action="add_player", uid=uid)
+        await self.database_action(DatabaseAction.add_player, uid)
     
     #marks a player's daily as redeemed in db
     async def mark_daily_as_redeemed(self, uid: int, date: str):
@@ -205,7 +213,7 @@ class Modules(commands.Cog):
         if not uid in self.player_ids:
             return
 
-        await self.database_action(action="mark_daily", uid=uid, date=date)
+        await self.database_action(DatabaseAction.mark_daily, uid, date)
 
     #fetches player info from database by given discord user id
     async def fetch_player_info_by_uid(self, uid: int):
@@ -213,7 +221,7 @@ class Modules(commands.Cog):
         if not uid in self.player_ids:
             return None
 
-        return await self.database_action(action="fetch_user", uid=uid)
+        return await self.database_action(DatabaseAction.fetch_user, uid)
 
     #handles logic needed by the next two methods
     async def manage_player_collection(self, action: str, uid: int, module_id):
@@ -245,7 +253,7 @@ class Modules(commands.Cog):
             else:
                 player_modules.remove(module_id)
 
-        await self.database_action(action="update_collection", uid=uid, value=player_modules)
+        await self.database_action(DatabaseAction.update_collection, uid, player_modules)
 
     #adds module card to player collection
     async def add_module_to_player(self, uid: int, module_id):
@@ -263,14 +271,14 @@ class Modules(commands.Cog):
     
     #adds vp amount to player's current total
     async def add_vp_to_player(self, uid: int, amount: int):
-        await self.database_action(action="add_vp", uid=uid, value=amount)
+        await self.database_action(DatabaseAction.add_vp, uid, amount)
 
         user = self.bot.get_user(uid)
         print("modules: Added %s VP to %s." % (amount, user))
 
     #removes vp amount from player's current total
     async def remove_vp_from_player(self, uid: int, amount: int):
-        await self.database_action(action="remove_vp", uid=uid, value=amount)
+        await self.database_action(DatabaseAction.remove_vp, uid, amount)
 
         user = self.bot.get_user(uid)
         print("modules: Removed %s VP from %s." % (amount, user))
