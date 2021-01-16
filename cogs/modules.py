@@ -1,12 +1,16 @@
 import discord
 from discord.ext import commands
 
+import asyncio
 import csv
 from datetime import date
 from io import BytesIO
+from iteration_utilities import duplicates
+from natsort import natsorted
 from PIL import Image
 import psycopg2
 import random
+from typing import Union
 
 class Modules(commands.Cog):
 
@@ -17,6 +21,13 @@ class Modules(commands.Cog):
         ### !--- CONFIGURABLE ---! ###
         self.drop_channel_id = 799282021725110282
         
+        self.min_msgs_before_drop = 20
+        self.initial_drop_percent = 5
+        
+        self.blitz_min_msg = 0
+        self.blitz_initial_percent = 90
+        self.blitz_duration_in_seconds = 60
+
         #list of files to load module info from at load
         self.csv_list = [
             'etc',
@@ -44,6 +55,7 @@ class Modules(commands.Cog):
         self.active_drops = {}
         self.message_count = {}
         self.player_ids = []
+        self.replace_existing_drops = True
 
         #read module info from csv files
         for csv_file in self.csv_list:
@@ -142,26 +154,50 @@ class Modules(commands.Cog):
         #returns false otherwise
         return False
 
-    #adds guild member to the player database to start tracking collection
-    async def add_player_by_uid(self, uid: int):
-        #do nothing if user id is already known to be registered
-        if uid in self.player_ids:
-            return
+    #handles database actions needed for other methods below
+    async def database_action(self, action: str, uid: int, value: Union[str, list, int] = None):
+        #predefine variables
+        SQL = ""
+        data = (value, uid)
 
-        SQL = "INSERT INTO modules (member_id, points) VALUES (%s, 0);"
+        #define SQL query and data depending on action
+        if action == "add_player":
+            SQL = "INSERT INTO modules (member_id, points) VALUES (%s, 0);"
+            data = (uid,)
+        elif action == "mark_daily":
+            SQL = "UPDATE modules SET last_daily = %s WHERE member_id = %s;"
+        elif action == "fetch_user":
+            SQL = "SELECT * FROM modules WHERE member_id = %s;"
+            data = (uid,)
+        elif action == "update_collection":
+            SQL = "UPDATE modules SET collection = %s WHERE member_id = %s"
+        elif action == "add_vp":
+            SQL = "UPDATE modules SET points = points + %s WHERE member_id = %s"
+        elif action == "remove_vp":
+            SQL = "UPDATE modules SET points = points - %s WHERE member_id = %s"
+        
+        #execute database action
         cursor = self.database.cursor()
-
         try:
-            cursor.execute(SQL, (uid,))
-            #add the uid to player_ids to save having to check in future
-            self.player_ids.append(uid)
+            cursor.execute(SQL, data)
+
+            #further actions depending on context
+            if action == "add_player":
+                #add the uid to player_ids to save having to check in future
+                self.player_ids.append(uid)
+            elif action == "fetch_user":
+                #returns player info fetched from db
+                return cursor.fetchone()
 
         except psycopg2.Error as e:
-            if not int(e.pgcode) == 23505:
-                print("module: Error adding player info to database:\n%s" % e)
+                print("module: Error executing database action '%s':\n%s" % (action, e))
 
         finally:
             cursor.close()
+
+    #adds guild member to the player database to start tracking collection
+    async def add_player_by_uid(self, uid: int):
+        await self.database_action(action="add_player", uid=uid)
     
     #marks a player's daily as redeemed in db
     async def mark_daily_as_redeemed(self, uid: int, date: str):
@@ -169,17 +205,7 @@ class Modules(commands.Cog):
         if not uid in self.player_ids:
             return
 
-        SQL = "UPDATE modules SET last_daily = %s WHERE member_id = %s;"
-        cursor = self.database.cursor()
-
-        try:
-            cursor.execute(SQL, (date, uid))
-
-        except psycopg2.Error as e:
-                print("module: Error marking player daily in database:\n%s" % e)
-
-        finally:
-            cursor.close()
+        await self.database_action(action="mark_daily", uid=uid, date=date)
 
     #fetches player info from database by given discord user id
     async def fetch_player_info_by_uid(self, uid: int):
@@ -187,25 +213,17 @@ class Modules(commands.Cog):
         if not uid in self.player_ids:
             return None
 
-        SQL = "SELECT * FROM modules WHERE member_id = %s;"
-        cursor = self.database.cursor()
+        return await self.database_action(action="fetch_user", uid=uid)
 
-        try:
-            cursor.execute(SQL, (uid,))
-            player_info = cursor.fetchone()
-            return player_info
-
-        except psycopg2.OperationalError as e:
-            print("module: Error fetching player info from database:\n%s" % e)
-
-        finally:
-            cursor.close()
-
-    #adds module card to player collection
-    async def add_module_to_player(self, uid: int, module_id, add_vp: int = 0):
+    #handles logic needed by the next two methods
+    async def manage_player_collection(self, action: str, uid: int, module_id):
         #registers user if user id is known to not have been
         if not uid in self.player_ids:
             await self.add_player_by_uid(uid)
+
+            #and then returns if removing module since player already has nothing
+            if action == "remove_module":
+                return
 
         #get player info & current module collection from db
         player = await self.fetch_player_info_by_uid(uid)
@@ -213,68 +231,49 @@ class Modules(commands.Cog):
         
         #fixes NoneType error if the player currently has no modules
         if not type(player_modules) == list:
+            #also returns if player has no modules to remove
+            if action == "remove_module":
+                return
             player_modules = []
         
-        player_modules.append(module_id)
-        
-        #insert player's new module collection into db
-        if add_vp == 0:
-            SQL = "UPDATE modules SET collection = %s WHERE member_id = %s"
-        else:
-            SQL = "UPDATE modules SET collection = %s, points = points + %s WHERE member_id = %s"
+        if action == "add_module":
+            player_modules.append(module_id)
 
-        cursor = self.database.cursor()
-
-        try:
-            if add_vp == 0:
-                cursor.execute(SQL, (player_modules, uid))
+        elif action == "remove_module":
+            if not module_id in player_modules:
+                return
             else:
-                cursor.execute(SQL, (player_modules, add_vp, uid))
-            
-            user = self.bot.get_user(uid)
-            print("modules: Added %s and %s VP to %s." % (module_id, add_vp, user))
+                player_modules.remove(module_id)
 
-        except psycopg2.Error as e:
-            print("modules: Error adding module %s to user:\n%s" % (module_id, e))
+        await self.database_action(action="update_collection", uid=uid, value=player_modules)
 
-        finally:
-            cursor.close()
+    #adds module card to player collection
+    async def add_module_to_player(self, uid: int, module_id):
+        await self.manage_player_collection(action="add_module", uid=uid, module_id=module_id)
+
+        user = self.bot.get_user(uid)
+        print("modules: Added %s to %s." % (module_id, user))
 
     #remvoes module card from player collection
     async def remove_module_from_player(self, uid: int, module_id):
-        #registers user if user id is known to not have been
-        if not uid in self.player_ids:
-            await self.add_player_by_uid(uid)
+        await self.manage_player_collection(action="remove_module", uid=uid, module_id=module_id)
 
-        #get player info & current module collection from db
-        player = await self.fetch_player_info_by_uid(uid)
-        player_modules = player[3]
-        
-        #fixes NoneType error if the player currently has no modules
-        if not type(player_modules) == list:
-            return
-        
-        #return if module isn't in player collection
-        if not module_id in player_modules:
-            return
+        user = self.bot.get_user(uid)
+        print("modules: Removed %s from %s." % (module_id, user))
+    
+    #adds vp amount to player's current total
+    async def add_vp_to_player(self, uid: int, amount: int):
+        await self.database_action(action="add_vp", uid=uid, value=amount)
 
-        #remove the module from player collection
-        player_modules.remove(module_id)
-        
-        #insert player's new module collection into db
-        SQL = "UPDATE modules SET collection = %s WHERE member_id = %s"
-        cursor = self.database.cursor()
-        try:
-            cursor.execute(SQL, (player_modules, uid))
+        user = self.bot.get_user(uid)
+        print("modules: Added %s VP to %s." % (amount, user))
 
-            user = self.bot.get_user(uid)
-            print("modules: Removed %s from %s." % (module_id, user))
+    #removes vp amount from player's current total
+    async def remove_vp_from_player(self, uid: int, amount: int):
+        await self.database_action(action="remove_vp", uid=uid, value=amount)
 
-        except psycopg2.Error as e:
-            print("modules: Error removing module %s from user:\n%s" % (module_id, e))
-
-        finally:
-            cursor.close()
+        user = self.bot.get_user(uid)
+        print("modules: Removed %s VP from %s." % (amount, user))
 
     #rolls a random valid module id
     async def roll_module_id(self):
@@ -326,6 +325,61 @@ class Modules(commands.Cog):
         embed.set_footer(text="Module id: %s" % module_id)
 
         return embed
+    
+    async def display_player_collection(self, ctx, page_number: int = 1, duplicates_only: bool = False):
+        #register player if not already
+        if not ctx.author.id in self.player_ids:
+            await self.add_player_by_uid(ctx.author.id)
+            return
+
+        player_info = await self.fetch_player_info_by_uid(ctx.author.id)
+        player_collection = player_info[3]
+
+        #do nothing if collection is empty
+        if not player_collection:
+            return
+        
+        #predefine text for use in embed later
+        embed_title = "Module Collection List"
+        command_name = "39!modules"
+
+        #filter to duplicates only if desired and check if empty
+        if duplicates_only:
+            player_collection = list(duplicates(player_collection))
+            if not player_collection:
+                return
+            
+            #change embed text to match command used
+            embed_title = "Module Duplicates List"
+            command_name = "39!duplicates"
+
+        #naturally sort list to order by module id
+        player_collection = natsorted(player_collection)
+
+        #split player collection into pages with 20 cards max
+        pages = [player_collection[i:i + 20] for i in range(0, len(player_collection), 20)]  
+
+        #avoids index out of range error
+        if page_number > len(pages) or page_number < 1:
+            page_number = 1
+
+        #embed to display card collection
+        embed = embed=discord.Embed(title=embed_title, color=0x80ffff)
+        embed.set_thumbnail(url=ctx.author.avatar_url)
+        embed.set_footer(text="Viewing page %s of %s\nAdd a page number after %s to view other pages" % (page_number, len(pages), command_name))
+
+        #loop through selected page and form string of module ids + names
+        module_list = ""
+        for module_id in pages[page_number-1]:
+            module = await self.fetch_module_info(module_id)
+
+            #append module id + name to string that will be part of embed
+            module_list += "• %s -- %s\n" % (module_id, module['ENG Name'])
+        
+        embed.add_field(name="Modules:", value=module_list, inline=False)
+
+        #finally, send list embed
+        await ctx.send(embed=embed)
 
     ### !--- COMMANDS ---! ###
     #given module_id sends the module to ctx
@@ -342,9 +396,61 @@ class Modules(commands.Cog):
 
         #finally, send the message with the new module image in an embed
         await ctx.send(file=file, embed=embed)
+    
+    @commands.is_owner()
+    @commands.command()
+    async def add_module(self, ctx, module_id: str, uid: int):
+        await self.add_module_to_player(uid=uid, module_id=module_id)
+
+    @commands.is_owner()
+    @commands.command()
+    async def remove_module(self, ctx, module_id: str, uid: int):
+        await self.remove_module_from_player(uid=uid, module_id=module_id)
+    
+    @commands.is_owner()
+    @commands.command()
+    async def add_vp(self, ctx, amount: int, uid: int):
+        await self.add_vp_to_player(uid=uid, amount=amount)
+    
+    @commands.is_owner()
+    @commands.command()
+    async def remove_vp(self, ctx, amount: int, uid: int):
+        await self.remove_vp_from_player(uid=uid, amount=amount)
+
+    #temporarily gives massive boost to drop rates
+    @commands.is_owner()
+    @commands.command()
+    async def blitz(self, ctx):
+        #reset guild message counter
+        self.message_count[ctx.guild.id] = 0
+
+        #temp store pre-bliz values
+        previous_values = {
+            'min_msg': self.min_msgs_before_drop,
+            'initial_percent': self.initial_drop_percent
+        }
+
+        #avoid drops constantly being replaced due to high drop rates
+        self.replace_existing_drops = False
+
+        #replace with blitz values
+        self.min_msgs_before_drop = self.blitz_min_msg
+        self.initial_drop_percent = self.blitz_initial_percent
+
+        #send announcement and wait
+        await ctx.send("**! BLITZ IS NOW ACTIVE !**\nModule drop rates ***WAY*** up for %s second(s)." % self.blitz_duration_in_seconds)
+        await asyncio.sleep(self.blitz_duration_in_seconds)
+
+        #return to their previous values pre-blitz
+        self.min_msgs_before_drop = previous_values['min_msg']
+        self.initial_drop_percent = previous_values['initial_percent']
+        self.replace_existing_drops = True
+
+        #send final announcement
+        await ctx.send("**! BLITZ FINISHED !**\nModule drop rates have returned to normal.")
 
     #like show_module() but only works if module is in collection
-    @commands.command()
+    @commands.command(name='view', aliases=['show'])
     async def view(self, ctx, module_id: str):
         #register user if not already
         if not ctx.author.id in self.player_ids:
@@ -380,12 +486,10 @@ class Modules(commands.Cog):
 
         #check for active drop
         if not ctx.guild.id in self.active_drops:
-            await ctx.reply("There are currently no active drops in this server!")
             return
         
         #check if module_id matches current drop
         if not self.active_drops[ctx.guild.id] == module_id:
-            await ctx.reply("Incorrect module id!")
             return
 
         #remove drop from active list
@@ -396,7 +500,8 @@ class Modules(commands.Cog):
         module_name = module["ENG Name"]
 
         #add the module to player collection and reply
-        await self.add_module_to_player(ctx.author.id, module_id, add_vp = 100)
+        await self.add_module_to_player(ctx.author.id, module_id)
+        await self.add_vp_to_player(ctx.author.id, amount=100)
         await ctx.reply("Redeemed %s! You gained 100 VP." % module_name)
 
         print("modules: %s redeemed by %s." % (module_id, ctx.author))
@@ -443,6 +548,46 @@ class Modules(commands.Cog):
 
         await ctx.reply("You gave %s -- %s to %s." % (module_id, module_name, receiving_user.mention))
         print("modules: %s given to %s by %s." % (module_id, ctx.author, receiving_user))
+
+    #gives module from module id to mentioned player if module is owned
+    @commands.command()
+    async def give_vp(self, ctx, amount: int, receiving_user: discord.Member):
+        #register user if not already
+        if not ctx.author.id in self.player_ids:
+            await self.add_player_by_uid(ctx.author.id)
+            return
+
+        #do nothing if not a possible amount to transfer
+        if amount < 1:
+            return
+
+        #fetch player_info and current points amount
+        player_info = await self.fetch_player_info_by_uid(ctx.author.id)
+        player_points = player_info[2]
+    
+        #check player has enough points
+        if amount > player_points:
+            await ctx.reply("You don't have enough VP to do that, sorry!")
+            return
+
+        if receiving_user == ctx.author:
+            await ctx.reply("You transferred the VP to a separate save file you were playing on. Or something like that.")
+            return
+
+        if receiving_user.bot:
+            await ctx.reply("The bot appreciates the gesture, but politely declines.")
+            return
+
+        #register receiving user if not already
+        if not receiving_user.id in self.player_ids:
+            await self.add_player_by_uid(receiving_user.id)
+
+        #swap the VP amount between players
+        await self.remove_vp_from_player(ctx.author.id, amount)
+        await self.add_vp_to_player(receiving_user.id, amount)
+
+        await ctx.reply("You gave %s VP to %s." % (amount, receiving_user.mention))
+        print("modules: %s VP given to %s by %s." % (amount, receiving_user, ctx.author))
     
     #gives random module and medium amount of VP, usable once a day per user
     @commands.command()
@@ -462,7 +607,8 @@ class Modules(commands.Cog):
 
     	#roll random module and add to collection with daily VP bonus
         module_id = await self.roll_module_id()
-        await self.add_module_to_player(ctx.author.id, module_id, add_vp=500)
+        await self.add_module_to_player(ctx.author.id, module_id)
+        await self.add_vp_to_player(ctx.author.id, amount=500)
 
         #prepare embed to show to user
         file = await self.get_module_file(module_id)
@@ -520,45 +666,14 @@ class Modules(commands.Cog):
         await ctx.send(embed=embed)
 
     #displays detailed list of module collection
-    @commands.command()
+    @commands.command(name='collection', aliases=['col'])
     async def collection(self, ctx, page_number: int = 1):
-        #register player if not already
-        if not ctx.author.id in self.player_ids:
-            await self.add_player_by_uid(ctx.author.id)
+        await self.display_player_collection(ctx=ctx, page_number=page_number)
 
-        player_info = await self.fetch_player_info_by_uid(ctx.author.id)
-        player_collection = player_info[3]
-
-        #do nothing if collection is empty
-        if not player_collection:
-            return
-        
-        player_collection.sort()
-
-        #split player collection into pages with 20 cards max
-        pages = [player_collection[i:i + 20] for i in range(0, len(player_collection), 20)]  
-
-        #avoids index out of range error
-        if page_number > len(pages) or page_number < 1:
-            page_number = 1
-
-        #embed to display card collection
-        embed = embed=discord.Embed(title="Module Collection List", color=0x80ffff)
-        embed.set_thumbnail(url=ctx.author.avatar_url)
-        embed.set_footer(text="Viewing page %s of %s\nAdd a page number after 39!collection to view other pages" % (page_number, len(pages)))
-
-        #loop through selected page and form string of module ids + names
-        module_list = ""
-        for module_id in pages[page_number-1]:
-            module = await self.fetch_module_info(module_id)
-
-            #append module id + name to string that will be part of embed
-            module_list += "• %s -- %s\n" % (module_id, module['ENG Name'])
-        
-        embed.add_field(name="Modules:", value=module_list, inline=False)
-
-        #finally, send list embed
-        await ctx.send(embed=embed)
+    #same as above but only displays duplicates
+    @commands.command(name='duplicates', aliases=['dupes', 'spares'])
+    async def duplicates(self, ctx, page_number: int = 1):
+        await self.display_player_collection(ctx=ctx, page_number=page_number, duplicates_only=True)
 
     ### !--- EVENTS ---! ###
     #handles random module drops
@@ -576,6 +691,11 @@ class Modules(commands.Cog):
         if message.content.startswith("39!"):
             return
 
+        #toggled during blitzes
+        if message.guild.id in self.active_drops\
+        and not self.replace_existing_drops:
+            return
+
         #start tracking current guild message count if not already
         if not message.guild.id in self.message_count:
             self.message_count[message.guild.id] = 1
@@ -584,35 +704,39 @@ class Modules(commands.Cog):
         #increment message counter
         self.message_count[message.guild.id] += 1
  
-        #at least 20 messages needed before rolling for a drop chance
-        if self.message_count[message.guild.id] < 20:
+        #at least x messages needed before rolling for a drop chance
+        if self.message_count[message.guild.id] < self.min_msgs_before_drop:
             return
 
-        #% chance to drop module is message_count - 15
-        #so once 20 messages have been sent drop chance = 5%
+        #% chance to drop module is (min_msgs_before_drop - initial_drop_percent) + message_count
         #increasing by 1% per message sent
         roll = random.randint(0, 100)
-        if roll <= (self.message_count[message.guild.id] - 15):
-            #reset message count upon dropping module
-            self.message_count[message.guild.id] = 0
-
-            #roll random module and fetch file to send
-            module_id = await self.roll_module_id()
-            file = await self.get_module_file(module_id)
-
-            #create module embed
-            embed = embed=discord.Embed(title="Module Drop", color=0x80ffff)
-            embed = await self.fill_module_embed(module_id, embed)
-            embed.add_field(name="** **", value="`39!redeem <module id>` to redeem.", inline=False)
-
-            #add to active drops
-            self.active_drops[message.guild.id] = module_id
-
-            #finally, send the message with the new module image in an embed
+        if roll <= (self.message_count[message.guild.id] - (self.min_msgs_before_drop - self.initial_drop_percent)):
             drop_channel = self.bot.get_channel(self.drop_channel_id)
-            await drop_channel.send(file=file, embed=embed)
 
-            print("modules: Dropped %s in %s." % (module_id, drop_channel))
+            #invoke typing until message is sent
+            async with drop_channel.typing():
+                #reset message count upon dropping module
+                self.message_count[message.guild.id] = 0
+
+                #roll random module and fetch file to send
+                module_id = await self.roll_module_id()
+                file = await self.get_module_file(module_id)
+
+                #create module embed
+                embed = embed=discord.Embed(title="Module Drop", color=0x80ffff)
+                embed = await self.fill_module_embed(module_id, embed)
+                embed.add_field(name="** **", value="`39!redeem <module id>` to redeem.", inline=False)
+
+                #add to active drops
+                self.active_drops[message.guild.id] = module_id
+
+                #pause to let people see the 'typing' status
+                await asyncio.sleep(1)
+
+                #finally, send the message with the new module image in an embed
+                await drop_channel.send(file=file, embed=embed)
+                print("modules: Dropped %s in %s." % (module_id, drop_channel))
 
 ### !--- SETUP ---! ###
 def setup(bot):
