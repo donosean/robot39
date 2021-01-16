@@ -14,12 +14,15 @@ import random
 from typing import Union
 
 class DatabaseAction(Enum):
-    add_player = 'add player'
-    mark_daily = 'mark daily'
-    fetch_user = 'fetch user'
-    update_collection = 'update collection'
-    add_vp = 'add vp'
-    remove_vp = 'remove vp'
+    add_player = "INSERT INTO modules (member_id, points) VALUES (%s, 0);"
+    mark_daily = "UPDATE modules SET last_daily = %s WHERE member_id = %s;"
+    fetch_user = "SELECT * FROM modules WHERE member_id = %s;"
+    update_collection = "UPDATE modules SET collection = %s WHERE member_id = %s"
+    add_vp = "UPDATE modules SET points = points + %s WHERE member_id = %s"
+    remove_vp = "UPDATE modules SET points = points - %s WHERE member_id = %s"
+
+    def __init__(self, SQL):
+        self.SQL = SQL
 
 class Modules(commands.Cog):
     ### !--- INIT ---! ###
@@ -164,30 +167,16 @@ class Modules(commands.Cog):
 
     #handles database actions needed for other methods below
     async def database_action(self, action: DatabaseAction, uid: int, value: Union[str, list, int] = None):
-        #predefine variables
-        SQL = ""
+        #prepare data to be used in query
         data = (value, uid)
+        if action == DatabaseAction.add_player\
+        or action == DatabaseAction.fetch_user:
+            data = (uid,)
 
-        #define SQL query and data depending on action
-        if action == DatabaseAction.add_player:
-            SQL = "INSERT INTO modules (member_id, points) VALUES (%s, 0);"
-            data = (uid,)
-        elif action == DatabaseAction.mark_daily:
-            SQL = "UPDATE modules SET last_daily = %s WHERE member_id = %s;"
-        elif action == DatabaseAction.fetch_user:
-            SQL = "SELECT * FROM modules WHERE member_id = %s;"
-            data = (uid,)
-        elif action == DatabaseAction.update_collection:
-            SQL = "UPDATE modules SET collection = %s WHERE member_id = %s"
-        elif action == DatabaseAction.add_vp:
-            SQL = "UPDATE modules SET points = points + %s WHERE member_id = %s"
-        elif action == DatabaseAction.remove_vp:
-            SQL = "UPDATE modules SET points = points - %s WHERE member_id = %s"
-        
         #execute database action
         cursor = self.database.cursor()
         try:
-            cursor.execute(SQL, data)
+            cursor.execute(action.SQL, data)
 
             #further actions depending on context
             if action == DatabaseAction.add_player:
