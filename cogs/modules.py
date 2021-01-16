@@ -596,7 +596,7 @@ class Modules(commands.Cog):
         if not ctx.author.id in self.player_ids:
             await self.add_player_by_uid(ctx.author.id)
 
-        #fetch player info and todays day of the month as int
+        #fetch player info and todays day of the month as str
         player_info = await self.fetch_player_info_by_uid(ctx.author.id)  
         today = str(date.today())
 
