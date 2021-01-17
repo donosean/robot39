@@ -340,7 +340,7 @@ class Modules(commands.Cog):
         
         #predefine text for use in embed later
         embed_title = "Module Collection List"
-        command_name = "39!modules"
+        command_name = "39!collection"
 
         #filter to duplicates only if desired and check if empty
         if duplicates_only:

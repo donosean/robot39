@@ -13,15 +13,20 @@ class NoMimic(commands.Cog):
         if after.bot:
             return
 
+        #check for nickname change
+        if before.nick == after.nick:
+            return
+
         #check if new nickname matches bot's current nickname in that server
         if after.nick == after.guild.me.nick:
-            #and if so, revert the nickname change
+            #and if so, change the nickname
             try:
-                await after.edit(nick="Jebaited")
-                print("nomimic: Caught matching nickname, reverted for user %s." % after)
+                member = after.guild.get_member(after.id)
+                await member.edit(nick="Jebaited")
+                print("nomimic: Caught matching nickname, reverted for user %s." % member)
             
-            except discord.Forbidden:
-                print("nomimic: Missing permissions to revert nickname for %s." % after)
+            except discord.errors as e:
+                print("nomimic: Error changing nickname -- %s" % e)
 
 ### !--- SETUP ---! ###
 def setup(bot):
