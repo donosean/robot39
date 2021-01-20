@@ -1,6 +1,7 @@
 import discord
 from discord.ext import commands
 
+
 class Events(commands.Cog):
 
     def __init__(self, bot):
@@ -9,7 +10,8 @@ class Events(commands.Cog):
     ### !--- EVENTS ---! ###
     @commands.Cog.listener()
     async def on_command(self, ctx):
-        print("events: %s used a command: %s" % (ctx.message.author, ctx.message.content))
+        print("events: %s used a command: %s"
+              % (ctx.message.author, ctx.message.content))
 
     @commands.Cog.listener()
     async def on_command_error(self, ctx, e):
@@ -17,22 +19,27 @@ class Events(commands.Cog):
 
     @commands.Cog.listener()
     async def on_guild_join(self, guild):
-        print("events: Bot joined server %s (%s)." % (guild.name, guild.id))
+        print("events: Bot joined server %s (%s)" % (guild.name, guild.id))
     
     @commands.Cog.listener()
     async def on_guild_remove(self, guild):
-        print("events: Bot was removed from server %s (%s)." % (guild.name, guild.id))
+        print("events: Bot was removed from server %s (%s)"
+              % (guild.name, guild.id))
 
     @commands.Cog.listener()
     async def on_ready(self):
         print("events: Bot logged in as %s" % self.bot.user)
-        print("events: Bot is currently a member of %s server(s)." % len(self.bot.guilds))
+        print("events: Bot is currently a member of %s server(s)"
+              % len(self.bot.guilds))
 
         try:
-            await self.bot.change_presence(activity=discord.Game("Hatsune Miku: Project DIVA Future Tone"))
+            await self.bot.change_presence(
+                    activity=discord.Game(
+                        "Hatsune Miku: Project DIVA Future Tone"))
         
         except discord.InvalidArgument:
-            print("events: Invalid argument given for changing bot presence.")
+            print("events: Invalid argument given for changing bot presence")
+
 
 def setup(bot):
     bot.add_cog(Events(bot))
