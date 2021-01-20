@@ -13,33 +13,40 @@ import psycopg2
 import random
 from typing import Union
 
+
 class DatabaseAction(Enum):
     add_player = "INSERT INTO modules (member_id, points) VALUES (%s, 0);"
     mark_daily = "UPDATE modules SET last_daily = %s WHERE member_id = %s;"
     fetch_user = "SELECT * FROM modules WHERE member_id = %s;"
-    update_collection = "UPDATE modules SET collection = %s WHERE member_id = %s"
     add_vp = "UPDATE modules SET points = points + %s WHERE member_id = %s"
     remove_vp = "UPDATE modules SET points = points - %s WHERE member_id = %s"
+    update_collection = "UPDATE modules SET collection = %s "\
+                        "WHERE member_id = %s"
 
     def __init__(self, SQL):
         self.SQL = SQL
 
+
 class Modules(commands.Cog):
-    ### !--- INIT ---! ###
+
     def __init__(self, bot):
         self.bot = bot
+        self.modules_dict = {}
+        self.active_drops = {}
+        self.message_count = {}
+        self.player_ids = []
 
-        ### !--- CONFIGURABLE ---! ###
         self.drop_channel_id = 799282021725110282
         
         self.min_msgs_before_drop = 20
         self.initial_drop_percent = 5
         
+        self.replace_existing_drops = True
         self.blitz_min_msg = 0
         self.blitz_initial_percent = 90
         self.blitz_duration_in_seconds = 60
 
-        #list of files to load module info from at load
+        # List of CSV files to load module info from at load
         self.csv_list = [
             'etc',
             'kai',
@@ -50,7 +57,7 @@ class Modules(commands.Cog):
             'rin'
         ]
 
-        #full names of each module set
+        # Full names of each module set
         self.set_names = {
             'etc': 'Others',
             'kai': 'Kaito',
@@ -61,43 +68,47 @@ class Modules(commands.Cog):
             'rin': 'Rin'
         }
 
-        # empty vars to be filled during runtime
-        self.modules_dict = {}
-        self.active_drops = {}
-        self.message_count = {}
-        self.player_ids = []
-        self.replace_existing_drops = True
-
-        #read module info from csv files
+        # Read module info from CSV files
         for csv_file in self.csv_list:
             try:
-                with open('data/modules/%s.csv' % csv_file, newline='', encoding='utf-8') as modules_file:
+                # Open each csv file with a csv.DictReader and append each row
+                # to a list
+                with open('data/modules/%s.csv'
+                          % csv_file, newline='', encoding='utf-8')\
+                          as modules_file:
                     reader = csv.DictReader(modules_file)
                     self.modules_dict[csv_file] = []
                     for row in reader:
                         self.modules_dict[csv_file].append(row)
-                print("modules: Info loaded from %s.csv for %s module(s)." % (csv_file, len(self.modules_dict[csv_file])))
-            except:
-                print("modules: Error reading modules data from %s.csv." % csv_file)
+                    
+                # Print how many entries are loaded from each CSV file
+                print("modules: Info loaded from %s.csv for %s module(s)"
+                      % (csv_file, len(self.modules_dict[csv_file])))
+
+            except Exception as e:
+                print("modules: Error reading modules data from %s.csv\n%s"
+                      % (csv_file, e))
         
-        #read db url from file
+        # Read database URL from file
         postgres_txt = open("postgres.txt", "r")
         self.DATABASE_URL = postgres_txt.read()
         postgres_txt.close()
 
-        #db connection code
+        # Connect to database
         try:
-            self.database = psycopg2.connect(self.DATABASE_URL, sslmode='require')
+            self.database = psycopg2.connect(self.DATABASE_URL,
+                                             sslmode='require')
             self.database.autocommit = True
             print("modules: Connected to database.")
+
         except:
             print("modules: Error connecting to the database!")
         
-        #cache all current user ids from db
+        # Cache all current user IDs from database
         self.update_player_ids()
 
     ### !--- METHODS ---! ###
-    #caches list of currently registered discord user ids to reduce db operations
+    # Caches list of currently registered Discord user IDs in database
     def update_player_ids(self):
         SQL = "SELECT member_id from modules;"
         cursor = self.database.cursor()
@@ -106,227 +117,236 @@ class Modules(commands.Cog):
             cursor.execute(SQL)
             sql_output = cursor.fetchall()
 
-            #db returns a list of lists, we only want the first element in each one
+            # The database returns a list of lists, only
+            # the first element in each list is desired
             player_ids = [id[0] for id in sql_output]
             self.player_ids = player_ids
 
         except psycopg2.Error as e:
-                print("module: Error fetching member IDs from database:\n%s" % e)
+                print("module: Error fetching member IDs from database:\n%s"
+                      % e)
 
         finally:
             cursor.close()
 
-    #splits module id into set and number components, returned as dict
-    async def split_module_id(self, module_id):
-        #in module id 'mik-123':
-        #module_set = 'mik'
-        #module_number = '123'
+    # Splits a module_id into its set and number components
+    # For module_id 'mik-123': 'mik' is the set, '123' is the number
+    async def split_module_id(self, module_id: str) -> dict:
         module_set = module_id[0:3]
         module_number = int(module_id[4:])
 
-        #returns these values in a dictionary
         module = {
             'set': module_set,
             'number': module_number
         }
         return module
 
-    #returns a module dict containing all information for a given module id
-    async def fetch_module_info(self, module_id):
-        #split module id into set & number
+    # Fetches the info for a given module_id including
+    # its set, number, English name and Japanese name
+    async def fetch_module_info(self, module_id: str) -> dict:
         module = await self.split_module_id(module_id)
 
-        #fetch info from self.modules_dict
-        module_info_from_dict = self.modules_dict[module['set']][module['number']-1]
+        # Get other module info from info that was read
+        # from the CSV files and add to the dictionary
+        module_info = self.modules_dict[module['set']][module['number']-1]
+        module['ENG Name'] = module_info['ENG Name']
+        module['JP Name'] = module_info['JP Name']
 
-        #add info from self.dict to module variable
-        module['ENG Name'] = module_info_from_dict['ENG Name']
-        module['JP Name'] = module_info_from_dict['JP Name']
-
-        #return completed module variable with all module info
         return module
 
-    #returns True if module id is in correct format and an actual module id, false otherwise
-    async def is_valid_module_id(self, module_id):
-        #returns false if 4th char in module id isn't a hyphen
-        #or overall module id length isn't between 5 an 7 chars
-        if not module_id[3] == '-'\
-        or not (len(module_id) >=5 and len(module_id) <=7):
+    # Checks if a module_id is valid and that the module exists
+    async def is_valid_module_id(self, module_id: str) -> bool:
+        # The module_id must have a hyphen in position 4
+        # and be between 5 and 7 characters total length
+        if (not module_id[3] == '-'
+                or not (len(module_id) >=5 and len(module_id) <=7)):
             return False
 
-        #split module id into set and number
         module = await self.split_module_id(module_id)
 
-        #returns true if module set exists and the module number exists in that set
-        if module['set'] in self.modules_dict\
-        and module['number']-1 <= len (self.modules_dict[module['set']]):
+        # Check if module set exists and module number exists within that set
+        if (module['set'] in self.modules_dict
+                and module['number']-1 \
+                <= len (self.modules_dict[module['set']])):
             return True
         
-        #returns false otherwise
+        # Not a valid module_id
         return False
 
-    #handles database actions needed for other methods below
-    async def database_action(self, action: DatabaseAction, uid: int, value: Union[str, list, int] = None):
-        #prepare data to be used in query
+    # Executes all database actions used by other methods in this cog,
+    # using SQL statements defined in the DatabaseAction enum
+    async def database_action(self, action: DatabaseAction, uid: int,
+                              value: Union[str, list, int] = None):
+        # Prepare data to be used in query
         data = (value, uid)
         if action == DatabaseAction.add_player\
-        or action == DatabaseAction.fetch_user:
+                or action == DatabaseAction.fetch_user:
             data = (uid,)
 
-        #execute database action
+        # Execute database action
         cursor = self.database.cursor()
         try:
             cursor.execute(action.SQL, data)
 
-            #further actions depending on context
+            # Add the Discord user ID to cache if a new player was registered
             if action == DatabaseAction.add_player:
-                #add the uid to player_ids to save having to check in future
                 self.player_ids.append(uid)
+            
+            # Return the fetched info if database was queried for player info
             elif action == DatabaseAction.fetch_user:
-                #returns player info fetched from db
                 return cursor.fetchone()
 
         except psycopg2.Error as e:
-                print("module: Error executing database action '%s':\n%s" % (action, e))
+                print("module: Error executing database action '%s':\n%s"
+                      % (action, e))
 
         finally:
             cursor.close()
 
-    #adds guild member to the player database to start tracking collection
+    # Adds guild member to the player database to start tracking collection
     async def add_player_by_uid(self, uid: int):
         await self.database_action(DatabaseAction.add_player, uid)
     
-    #marks a player's daily as redeemed in db
+    # Marks a player's daily as redeemed in the database
     async def mark_daily_as_redeemed(self, uid: int, date: str):
-        #do nothing if uid is not registered
+        # Do nothing if uid is not registered
         if not uid in self.player_ids:
             return
 
         await self.database_action(DatabaseAction.mark_daily, uid, date)
 
-    #fetches player info from database by given discord user id
+    # Fetches player info from database by given Discord user ID
     async def fetch_player_info_by_uid(self, uid: int):
-        #return None if user id is known to not be registered
+        # Return None if uid is known to not be registered (not cached)
         if not uid in self.player_ids:
             return None
 
         return await self.database_action(DatabaseAction.fetch_user, uid)
 
-    #handles logic needed by the next two methods
-    async def manage_player_collection(self, action: str, uid: int, module_id):
-        #registers user if user id is known to not have been
+    # Adds or removes a module (module_id) from a player (uid)
+    async def manage_player_collection(self, action: str,
+                                       uid: int, module_id: str):
+        # Register user if uid is not in the cache
         if not uid in self.player_ids:
             await self.add_player_by_uid(uid)
 
-            #and then returns if removing module since player already has nothing
+            # Do nothing as the newly registered player has no modules to remove
             if action == "remove_module":
                 return
 
-        #get player info & current module collection from db
+        # Get player info and current module collection
         player = await self.fetch_player_info_by_uid(uid)
         player_modules = player[3]
         
-        #fixes NoneType error if the player currently has no modules
+        # Return if player collection is already empty, or initialise empty list
+        # for adding a module to an empty collection
         if not type(player_modules) == list:
-            #also returns if player has no modules to remove
-            if action == "remove_module":
-                return
-            player_modules = []
+            if action == "remove_module": return
+            else: player_modules = []
         
+        # Add module_id to the player's collection
         if action == "add_module":
             player_modules.append(module_id)
 
+        # Or remove module_id from the player's collection if it exists
         elif action == "remove_module":
-            if not module_id in player_modules:
-                return
-            else:
-                player_modules.remove(module_id)
+            if not module_id in player_modules: return
+            else: player_modules.remove(module_id)
 
-        await self.database_action(DatabaseAction.update_collection, uid, player_modules)
+        # Commit updated player collection to database
+        await self.database_action(DatabaseAction.update_collection,
+                                   uid, player_modules)
 
-    #adds module card to player collection
-    async def add_module_to_player(self, uid: int, module_id):
-        await self.manage_player_collection(action="add_module", uid=uid, module_id=module_id)
-
-        user = self.bot.get_user(uid)
-        print("modules: Added %s to %s." % (module_id, user))
-
-    #remvoes module card from player collection
-    async def remove_module_from_player(self, uid: int, module_id):
-        await self.manage_player_collection(action="remove_module", uid=uid, module_id=module_id)
+    # Adds a module (module_id) to a player (uid)
+    async def add_module_to_player(self, uid: int, module_id: str):
+        await self.manage_player_collection(uid, module_id, action="add_module")
 
         user = self.bot.get_user(uid)
-        print("modules: Removed %s from %s." % (module_id, user))
+        print("modules: Added %s to %s" % (module_id, user))
+
+    # Removes a module (module_id) from a player (uid)
+    async def remove_module_from_player(self, uid: int, module_id: str):
+        await self.manage_player_collection(uid, module_id,
+                                            action="remove_module")
+
+        user = self.bot.get_user(uid)
+        print("modules: Removed %s from %s" % (module_id, user))
     
-    #adds vp amount to player's current total
+    # Adds VP amount to player's current total
     async def add_vp_to_player(self, uid: int, amount: int):
         await self.database_action(DatabaseAction.add_vp, uid, amount)
 
         user = self.bot.get_user(uid)
-        print("modules: Added %s VP to %s." % (amount, user))
+        print("modules: Added %s VP to %s" % (amount, user))
 
-    #removes vp amount from player's current total
+    # Removes VP amount from player's current total
     async def remove_vp_from_player(self, uid: int, amount: int):
         await self.database_action(DatabaseAction.remove_vp, uid, amount)
 
         user = self.bot.get_user(uid)
-        print("modules: Removed %s VP from %s." % (amount, user))
+        print("modules: Removed %s VP from %s" % (amount, user))
 
-    #rolls a random valid module id
-    async def roll_module_id(self, module_set: str = None):
-        #roll random set if not specified
+    # Rolls a random valid module_id
+    async def roll_module_id(self, module_set: str = None) -> str:
+        # Roll random set if not specified, weighting each set by
+        # size to give each module an even chance of being rolled
         if not module_set:
-            #weighting chance to roll each set based on set size
-            random_weighting = [len(self.modules_dict[each_module_set]) for each_module_set in self.csv_list]
-            module_set = random.choices(self.csv_list, weights=random_weighting, k=1)[0]
+            set_weights = [len(self.modules_dict[each_module_set])
+                           for each_module_set in self.csv_list]
+            module_set = random.choices(
+                           self.csv_list, weights=set_weights, k=1)[0]
         
-        #gen randon module id
+        # Roll random valid ID from the chosen set
         random_module = random.randint(1, len(self.modules_dict[module_set]))
-
-        #return module id
         module_id = "%s-%s" % (module_set, random_module)
         return module_id
     
-    #given module_id returns file containing the module image
-    async def get_module_file(self, module_id):
-        #split module_id into the set name and module number
+    # Prepares an image of a module (module_id) to be posted to Discord
+    async def get_module_file(self, module_id: str) -> discord.File:
         module = await self.split_module_id(module_id)
 
-        #define strings with path to the module and background image
-        module_image = "data/modules/%s/%s.png" % (module['set'], module['number'])
+        # File paths to module images and module background
+        module_image = "data/modules/%s/%s.png"\
+                       % (module['set'], module['number'])
         card_back = "data/modules/back-%s.png" % module['set']
 
-        #open the two images with Pillow
-        bg_image = Image.open(card_back)
-        top_image = Image.open(module_image)
+        # Open the two images with Pillow and paste
+        # the module over the background image
+        try:
+            top_image = Image.open(module_image)
+            bg_image = Image.open(card_back)
         
-        #paste the module image over the background in realtime
+        except FileNotFoundError:
+            print("modules: Image file(s) not found for module %s" % module)
+            return
+
         bg_image.paste(top_image,(0, 0), top_image)
 
-        #save the new image to memory
+        # Save the new image to memory and pass it
+        # to a Discord File object to return
         modified_image = BytesIO()
         bg_image.save(modified_image, format='png')
-        
-        #open the new image as a Discord file to upload
         modified_image.seek(0)
         file = discord.File(modified_image, filename="image.png")
 
         return file
 
-    #given module_id and initialised embed returns module embed to send
-    async def fill_module_embed(self, module_id, embed):
-        #fetch module info to use in embed
+    # Prepares embed containing module image and information to post to Discord
+    async def fill_module_embed(self, module_id: str,
+                                embed: discord.Embed) -> discord.Embed:
         module = await self.fetch_module_info(module_id)
 
-        #create the embed to post to Discord
-        embed.add_field(name=module['ENG Name'], value=module['JP Name'], inline=False)
         embed.set_image(url="attachment://image.png")
-        embed.set_footer(text="Module id: %s" % module_id)
+        embed.set_footer(text="Module ID: %s" % module_id)
+        embed.add_field(name=module['ENG Name'], value=module['JP Name'],
+                inline=False)
 
         return embed
     
-    async def display_player_collection(self, ctx, page_number: int = 1, duplicates_only: bool = False):
-        #register player if not already
+    async def display_player_collection(self, ctx, page_number: int = 1,
+                                        duplicates_only: bool = False):
+        # Register new player if Discord user ID is not in the cache,
+        # then return as they have no collection
         if not ctx.author.id in self.player_ids:
             await self.add_player_by_uid(ctx.author.id)
             return
@@ -334,89 +354,92 @@ class Modules(commands.Cog):
         player_info = await self.fetch_player_info_by_uid(ctx.author.id)
         player_collection = player_info[3]
 
-        #do nothing if collection is empty
+        # Do nothing if collection is empty
         if not player_collection:
             return
         
-        #predefine text for use in embed later
         embed_title = "Module Collection List"
         command_name = "39!collection"
 
-        #filter to duplicates only if desired and check if empty
+        # If displaying only duplicates, filter the player
+        # collection and check that there are any
         if duplicates_only:
             player_collection = list(duplicates(player_collection))
             if not player_collection:
                 return
             
-            #change embed text to match command used
+            # Change embed text to match command used
             embed_title = "Module Duplicates List"
             command_name = "39!duplicates"
 
-        #naturally sort list to order by module id
+        # Sort player collection and split into pages of 20
         player_collection = natsorted(player_collection)
+        pages = [player_collection[i:i + 20]
+                 for i in range(0, len(player_collection), 20)]  
 
-        #split player collection into pages with 20 cards max
-        pages = [player_collection[i:i + 20] for i in range(0, len(player_collection), 20)]  
-
-        #avoids index out of range error
+        # Default to page 1 if page doesn't exist
         if page_number > len(pages) or page_number < 1:
             page_number = 1
 
-        #embed to display card collection
+        # Create player collection embed
         embed = embed=discord.Embed(title=embed_title, color=0x80ffff)
         embed.set_thumbnail(url=ctx.author.avatar_url)
-        embed.set_footer(text="Viewing page %s of %s\nAdd a page number after %s to view other pages" % (page_number, len(pages), command_name))
+        embed.set_footer(
+            text="Viewing page %s of %s\n"
+                 "Add a page number after %s to view other pages"
+                 % (page_number, len(pages), command_name))
 
-        #loop through selected page and form string of module ids + names
+        # Loop through selected page and append module_id + English name to
+        # string for use in embed
         module_list = ""
         for module_id in pages[page_number-1]:
             module = await self.fetch_module_info(module_id)
-
-            #append module id + name to string that will be part of embed
             module_list += "• %s -- %s\n" % (module_id, module['ENG Name'])
         
         embed.add_field(name="Modules:", value=module_list, inline=False)
-
-        #finally, send list embed
         await ctx.send(embed=embed)
 
     ### !--- COMMANDS ---! ###
-    #given module_id sends the module to ctx
+    # Displays module (module_id) in context channel
     @commands.is_owner()
     @commands.command()
     async def show_module(self, ctx, module_id: str):
-        #check for correct module_id format
+        # Check for valid module_id
         if not await self.is_valid_module_id(module_id):
             return
     
+        # Get module image and embed
         file = await self.get_module_file(module_id)
         embed = embed=discord.Embed(title="Displaying Module", color=0x80ffff)
         embed = await self.fill_module_embed(module_id, embed)
 
-        #finally, send the message with the new module image in an embed
         await ctx.send(file=file, embed=embed)
     
+    # Adds module (module_id) to player (uid)
     @commands.is_owner()
     @commands.command()
     async def add_module(self, ctx, module_id: str, uid: int):
-        await self.add_module_to_player(uid=uid, module_id=module_id)
+        await self.add_module_to_player(uid, module_id)
 
+    # Removes module (module_id) from player (uid)
     @commands.is_owner()
     @commands.command()
     async def remove_module(self, ctx, module_id: str, uid: int):
-        await self.remove_module_from_player(uid=uid, module_id=module_id)
+        await self.remove_module_from_player(uid, module_id)
     
+    # Adds VP amount (amount) to player (uid)
     @commands.is_owner()
     @commands.command()
     async def add_vp(self, ctx, amount: int, uid: int):
-        await self.add_vp_to_player(uid=uid, amount=amount)
+        await self.add_vp_to_player(uid, amount)
     
+    # Removes VP amount (amount) from player (uid)
     @commands.is_owner()
     @commands.command()
     async def remove_vp(self, ctx, amount: int, uid: int):
-        await self.remove_vp_from_player(uid=uid, amount=amount)
+        await self.remove_vp_from_player(uid, amount)
 
-    #temporarily gives massive boost to drop rates
+    # Temporarily gives massive boost to drop rates
     @commands.is_owner()
     @commands.command()
     async def blitz(self, ctx):
@@ -776,6 +799,6 @@ class Modules(commands.Cog):
                 await drop_channel.send(file=file, embed=embed)
                 print("modules: Dropped %s in %s." % (module_id, drop_channel))
 
-### !--- SETUP ---! ###
+
 def setup(bot):
     bot.add_cog(Modules(bot))
