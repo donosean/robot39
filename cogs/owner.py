@@ -97,22 +97,22 @@ class Owner(commands.Cog):
                 'owner: %s does not own this bot.' % ctx.author)
 
     # Reloads a cog that is already loaded
-    @commands.command()
+    @commands.command(name="reload_cog", aliases=["reload"])
     async def reload_cog(self, ctx, cog: str):
         await self.manage_cog(ctx, cog, CogAction.reload)
 
     # Loads a cog that hasn't been loaded
-    @commands.command()
+    @commands.command(name="load_cog", aliases=["load"])
     async def load_cog(self, ctx, cog: str):
         await self.manage_cog(ctx, cog, CogAction.load)
 
     # Unloads a cog that has already been loaded
-    @commands.command()
+    @commands.command(name="unload_cog", aliases=["unload"])
     async def unload_cog(self, ctx, cog: str):
         await self.manage_cog(ctx, cog, CogAction.unload)
     
     # Sends a message to a channel given by channel ID/mention
-    @commands.command()
+    @commands.command(name="send_message", aliases=["send", "message"])
     async def send_message(self, ctx, channel: Union[int, discord.TextChannel],
                            *msg):
         # Join *msg arguments into one string and pass on to send method
@@ -120,7 +120,7 @@ class Owner(commands.Cog):
         await self.send(ctx, channel, message)
     
     # Sends a reply to a message given by channel ID/mention and message ID
-    @commands.command()
+    @commands.command(name="send_reply", aliases=["reply"])
     async def send_reply(self, ctx, channel: Union[int, discord.TextChannel],
                          msg_id: int, *msg):
         # Join *msg arguments into one string and pass on to send method
@@ -129,7 +129,7 @@ class Owner(commands.Cog):
 
     # Adds a reaction to a message given by channel ID/mention,
     # message ID and emoji as string
-    @commands.command()
+    @commands.command(name="add_reaction", aliases=["react"])
     async def add_reaction(self, ctx, channel: Union[int, discord.TextChannel],
                            msg_id: int, react_emoji: str):
         # Get channel if only a channel ID is given
