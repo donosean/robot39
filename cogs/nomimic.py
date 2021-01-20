@@ -8,7 +8,7 @@ class NoMimic(commands.Cog):
         self.bot = bot
 
     # Listens for member updates and checks for nickname changes. If the new
-    # nickname matches that of the bot, it is cleared.
+    # nickname matches that of the bot, it is cleared
     @commands.Cog.listener()
     async def on_member_update(self, before, after):
         # Ignore bot member updates and unchanged nicknames
