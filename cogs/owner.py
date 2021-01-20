@@ -4,30 +4,30 @@ from discord.ext import commands
 from enum import Enum
 from typing import Union
 
-from discord.ext.commands.cog import Cog
 
 class CogAction(Enum):
     reload = 'reload'
     load = 'load'
     unload = 'unload'
 
+
 class Owner(commands.Cog):
 
-    ### !--- INIT ---! ###
     def __init__(self, bot):
         self.bot = bot
 
     ### !--- METHODS ---! ###
-    #sends the same text to both context and the terminal
-    async def say(self, ctx, text):
+    # Send the same text to the terminal and context channel/DM
+    async def say(self, ctx, text: str):
         try:
             await ctx.reply(text)
+
         except discord.Forbidden:
             print("owner: Missing permissions to reply.")
         
         print("owner: %s" % text)
 
-    #handles reloading, loading and unloading of cogs depending on the command used
+    # Reload/load/unload cog depending on given CogAction
     async def manage_cog(self, ctx, cog: str, action: CogAction):
         try:
             if action == CogAction.reload:
@@ -36,11 +36,11 @@ class Owner(commands.Cog):
 
             elif action == CogAction.load:
                 self.bot.load_extension("cogs.%s" % cog)
-                await self.say(ctx, "Cog '%s' has been loaded" % cog)
+                await self.say(ctx, "Cog '%s' has been loaded." % cog)
 
             elif action == CogAction.unload:
                 self.bot.unload_extension("cogs.%s" % cog)
-                await self.say(ctx, "Cog '%s' has been unloaded" % cog)
+                await self.say(ctx, "Cog '%s' has been unloaded." % cog)
         
         except commands.ExtensionNotLoaded:
             await self.say(ctx, "Cog '%s' is not loaded." % cog)
@@ -57,37 +57,32 @@ class Owner(commands.Cog):
         except commands.ExtensionFailed:
             await self.say(ctx, "Cog '%s' had a setup function error." % cog)
     
-    #handles sending a normal message or reply message depending on the command used
-    async def send(self, ctx, channel: Union[int, discord.TextChannel], message, msg_id: int = None, reply: bool = False):
-        #fetch channel object if only channel id is given
+    # Send message to a channel; can be a reply to another
+    # message if a message ID is provided and reply = True
+    async def send(self, ctx, channel: Union[int, discord.TextChannel],
+                   message: str, message_id: int = None, reply: bool = False):
+        # Get channel if only a channel ID is given
         if type(channel) == int:
             channel = self.bot.get_channel(channel)
-        
-        #only continue if valid channel is given
         if not channel:
             await self.say(ctx, "Channel not found.")
             return
 
-        #only executes if invoked from the send reply command
-        reply_msg = None #avoids 'possibly unbound' warning
-        if reply:
-            try:
-                reply_msg = await channel.fetch_message(msg_id)
-
-            except discord.NotFound:
-                await self.say(ctx, "Message not found.")
-
-        #finally, send the message
         try:
-            #send reply command
-            if reply:
-                await reply_msg.reply(message)
-                await self.say(ctx, "Replied to message by %s in %s." % (reply_msg.author, channel.name))
-
-            #send message command
-            else:
+            # Send message to the given channel
+            if not reply:
                 await channel.send(message)
                 await self.say(ctx, "Sent message to %s." % channel.name)
+
+            # Get the message from the given message ID and send the reply
+            else:
+                reply_msg = await channel.fetch_message(message_id)
+                await self.say(ctx, "Replied to message by %s in %s."
+                               % (reply_msg.author, channel.name))
+                await reply_msg.reply(message)
+        
+        except discord.NotFound:
+                await self.say(ctx, "Message not found.")
 
         except discord.Forbidden:
             await self.say(ctx, "Missing permissions to send message.")
