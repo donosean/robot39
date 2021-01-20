@@ -400,48 +400,33 @@ class Modules(commands.Cog):
         await ctx.send(embed=embed)
 
     ### !--- COMMANDS ---! ###
-    # Displays module (module_id) in context channel
-    @commands.is_owner()
-    @commands.command()
-    async def show_module(self, ctx, module_id: str):
-        # Check for valid module_id
-        if not await self.is_valid_module_id(module_id):
-            return
-    
-        # Get module image and embed
-        file = await self.get_module_file(module_id)
-        embed = embed=discord.Embed(title="Displaying Module", color=0x80ffff)
-        embed = await self.fill_module_embed(module_id, embed)
-
-        await ctx.send(file=file, embed=embed)
-    
     # Adds module (module_id) to player (uid)
-    @commands.is_owner()
     @commands.command()
+    @commands.is_owner()
     async def add_module(self, ctx, module_id: str, uid: int):
         await self.add_module_to_player(uid, module_id)
 
     # Removes module (module_id) from player (uid)
-    @commands.is_owner()
     @commands.command()
+    @commands.is_owner()
     async def remove_module(self, ctx, module_id: str, uid: int):
         await self.remove_module_from_player(uid, module_id)
     
     # Adds VP amount (amount) to player (uid)
-    @commands.is_owner()
     @commands.command()
+    @commands.is_owner()
     async def add_vp(self, ctx, amount: int, uid: int):
         await self.add_vp_to_player(uid, amount)
     
     # Removes VP amount (amount) from player (uid)
-    @commands.is_owner()
     @commands.command()
+    @commands.is_owner()
     async def remove_vp(self, ctx, amount: int, uid: int):
         await self.remove_vp_from_player(uid, amount)
 
     # Temporarily gives massive boost to drop rates
-    @commands.is_owner()
     @commands.command()
+    @commands.is_owner()
     async def blitz(self, ctx):
         #reset guild message counter
         self.message_count[ctx.guild.id] = 0
@@ -471,105 +456,120 @@ class Modules(commands.Cog):
         #send final announcement
         await ctx.send("**! BLITZ FINISHED !**\nModule drop rates have returned to normal.")
 
-    #like show_module() but only works if module is in collection
-    @commands.command(name='view', aliases=['show'])
-    async def view(self, ctx, module_id: str):
-        #register user if not already
-        if not ctx.author.id in self.player_ids:
-            await self.add_player_by_uid(ctx.author.id)
-        
-        #check for correct module_id format
+    # Displays module (module_id) in context channel
+    @commands.command()
+    @commands.is_owner()
+    async def show_module(self, ctx, module_id: str):
+        # Check for valid module_id
         if not await self.is_valid_module_id(module_id):
             return
-
-        #fetch player_info and create list of collection
-        player_info = await self.fetch_player_info_by_uid(ctx.author.id)
-        player_collection = player_info[3]
     
-        #check for module id in player collection
-        if not module_id in player_collection:
-            await ctx.reply("You do not own that module, sorry!")
-            return
-
-        #continue if found, creating module file and embed to send
+        # Get module image and embed
         file = await self.get_module_file(module_id)
         embed = embed=discord.Embed(title="Displaying Module", color=0x80ffff)
         embed = await self.fill_module_embed(module_id, embed)
 
-        #finally, send the message with the new module image in an embed
         await ctx.send(file=file, embed=embed)
 
-    #redeems currently active drop in server if given correct module id:
-    @commands.command()
-    async def redeem(self, ctx, module_id: str):
-        #register user if not already
-        if not ctx.author.id in self.player_ids:
-            await self.add_player_by_uid(ctx.author.id)
-
-        #check for active drop
-        if not ctx.guild.id in self.active_drops:
-            return
-        
-        #check if module_id matches current drop
-        if not self.active_drops[ctx.guild.id] == module_id:
-            return
-
-        #remove drop from active list
-        del(self.active_drops[ctx.guild.id])
-
-        #get module name for use in reply messsage
-        module = await self.fetch_module_info(module_id)
-        module_name = module["ENG Name"]
-
-        #add the module to player collection and reply
-        await self.add_module_to_player(ctx.author.id, module_id)
-        await self.add_vp_to_player(ctx.author.id, amount=100)
-        await ctx.reply("Redeemed %s! You gained 100 VP." % module_name)
-
-        print("modules: %s redeemed by %s." % (module_id, ctx.author))
-
-    #gives module from module id to mentioned player if module is owned
-    @commands.command()
-    async def give_module(self, ctx, module_id: str, receiving_user: discord.Member):
-        #register user if not already
+    # Like show_module() but only works if module is in player collection
+    @commands.command(name='view', aliases=['show'])
+    async def view(self, ctx, module_id: str):
+        # Register and return if the user isn't registered already
         if not ctx.author.id in self.player_ids:
             await self.add_player_by_uid(ctx.author.id)
             return
 
-        #check for correct module_id format
+        # Check for valid module_id        
         if not await self.is_valid_module_id(module_id):
             return
 
-        #fetch player_info and create list of collection
+        # Fetch player_info and create list of collection
         player_info = await self.fetch_player_info_by_uid(ctx.author.id)
         player_collection = player_info[3]
     
-        #check for module id in player collection or empty collection
+        # Check module_id exists in the player's collection
+        if not module_id in player_collection:
+            await ctx.reply("You do not own that module, sorry!")
+            return
+
+        # Get the image and embed for the module
+        file = await self.get_module_file(module_id)
+        embed = embed=discord.Embed(title="Displaying Module", color=0x80ffff)
+        embed = await self.fill_module_embed(module_id, embed)
+        await ctx.send(file=file, embed=embed)
+
+    # Redeems a currently active drop in the server
+    # if the correct module ID is typed
+    @commands.command()
+    async def redeem(self, ctx, module_id: str):
+        # Register new players
+        if not ctx.author.id in self.player_ids:
+            await self.add_player_by_uid(ctx.author.id)
+
+        # Check for active drop and matching module_id
+        if not (ctx.guild.id in self.active_drops
+                and self.active_drops[ctx.guild.id] == module_id):
+            return
+
+        # Remove the drop and add the module to player collection
+        del(self.active_drops[ctx.guild.id])
+        await self.add_module_to_player(ctx.author.id, module_id)
+        await self.add_vp_to_player(ctx.author.id, amount=100)
+        
+        # Send reply message
+        module = await self.fetch_module_info(module_id)
+        module_name = module["ENG Name"]
+        await ctx.reply("Redeemed %s! You gained 100 VP." % module_name)
+        print("modules: %s redeemed by %s." % (module_id, ctx.author))
+
+    # Gives module (module_id) to mentioned player if module is owned by author
+    @commands.command()
+    async def give_module(self, ctx, module_id: str,
+                          receiving_user: discord.Member):
+        # Register and return if the author is a new player
+        if not ctx.author.id in self.player_ids:
+            await self.add_player_by_uid(ctx.author.id)
+            return
+
+        if not await self.is_valid_module_id(module_id):
+            return
+
+        # Fetch player info and module collection
+        player_info = await self.fetch_player_info_by_uid(ctx.author.id)
+        player_collection = player_info[3]
+    
+        # Check that collection isn't empty and module_id is owned
         if (not player_collection) or (not module_id in player_collection):
             await ctx.reply("You do not own that module, sorry!")
             return
 
+        # You can't give something to yourself
         if receiving_user == ctx.author:
-            await ctx.reply("You took the module card out of your left pocket, and moved it into your right. Good job.")
+            await ctx.reply("You took the module card out of your left pocket,"
+                            " and moved it into your right. Good job.")
             return
 
+        # You can't give something to a bot account
         if receiving_user.bot:
-            await ctx.reply("The bot appreciates the gesture, but politely declines.")
+            await ctx.reply("The bot appreciates the gesture,"
+                            " but politely declines.")
             return
 
-        #register receiving user if not already
+        # Register receiving_user if they're a new player
         if not receiving_user.id in self.player_ids:
             await self.add_player_by_uid(receiving_user.id)
 
+        # Swap the module between players
         await self.remove_module_from_player(ctx.author.id, module_id)
         await self.add_module_to_player(receiving_user.id, module_id)
         
-        #get module name for use in reply messsage
+        # Send reply
         module = await self.fetch_module_info(module_id)
         module_name = module["ENG Name"]
-
-        await ctx.reply("You gave %s -- %s to %s." % (module_id, module_name, receiving_user.mention))
-        print("modules: %s given to %s by %s." % (module_id, ctx.author, receiving_user))
+        await ctx.reply("You gave %s -- %s to %s."
+                        % (module_id, module_name, receiving_user.mention))
+        print("modules: %s given to %s by %s."
+              % (module_id, ctx.author, receiving_user))
 
     #gives module from module id to mentioned player if module is owned
     @commands.command()
