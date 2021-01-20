@@ -83,9 +83,12 @@ class Owner(commands.Cog):
         
         except discord.NotFound:
                 await self.say(ctx, "Message not found.")
+        
+        except discord.HTTPException:
+                await self.say(ctx, "Retrieving the message failed.")
 
         except discord.Forbidden:
-            await self.say(ctx, "Missing permissions to send message.")
+            await self.say(ctx, "Missing permissions to fetch/send message.")
         
     ### !--- CHECKS & COMMANDS ---! ###
     # Restricts all commands in this cog to the owner of the bot
@@ -161,7 +164,7 @@ class Owner(commands.Cog):
         except discord.HTTPException:
             await self.say(ctx, "Failed to add reaction due to HTTP exception,"\
                            " or potentially nonexistant emoji.")
-        
-### !--- SETUP ---! ###
+
+
 def setup(bot):
     bot.add_cog(Owner(bot))
