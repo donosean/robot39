@@ -149,9 +149,6 @@ class Owner(commands.Cog):
             await self.say(ctx, "Reaction added to message by %s in %s."
                            % (react_msg.author, channel.name))
 
-        except discord.NotFound:
-            await self.say(ctx, "Message not found.")
-
         except discord.Forbidden:
             await self.say(ctx, "Missing permissions to add reaction.")
 
