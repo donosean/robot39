@@ -1,33 +1,36 @@
 import discord
 from discord.ext import commands
 
+
 class NoMimic(commands.Cog):
 
-    ### !--- INIT ---! ###
     def __init__(self, bot):
         self.bot = bot
 
+    # Listens for member updates and checks for nickname changes. If the new
+    # nickname matches that of the bot, it is cleared.
     @commands.Cog.listener()
     async def on_member_update(self, before, after):
-        #ignore bot account updates
-        if after.bot:
+        # Ignore bot member updates and unchanged nicknames
+        if after.bot or before.nick == after.nick:
             return
 
-        #check for nickname change
-        if before.nick == after.nick:
-            return
-
-        #check if new nickname matches bot's current nickname in that server
+        # Compare new nickname to bot's current nickname,
+        # clearing it if they match
         if after.nick == after.guild.me.nick:
-            #and if so, change the nickname
             try:
                 member = after.guild.get_member(after.id)
-                await member.edit(nick="Jebaited")
-                print("nomimic: Caught matching nickname, reverted for user %s." % member)
+                await member.edit(nick=None)
+                print("nomimic: Caught matching nickname,"
+                      "cleared for user %s" % member)
             
-            except discord.errors as e:
-                print("nomimic: Error changing nickname -- %s" % e)
+            except discord.Forbidden:
+                print("nomimic: Missing permissions to clear nickname for %s"
+                      % after)
+            
+            except discord.HTTPException:
+                print("nomimic: Nickname clear operation failed for %s" % after)
 
-### !--- SETUP ---! ###
+
 def setup(bot):
     bot.add_cog(NoMimic(bot))
