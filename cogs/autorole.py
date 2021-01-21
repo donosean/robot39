@@ -45,7 +45,7 @@ class AutoRole(commands.Cog):
 
             # Cog will not load if it can't find/create settings file
             except OSError:
-                print("autorole: Error creating %s, cannot load cog."
+                print("autorole: Error creating %s, cannot load cog"
                       % self.settings_file[5:])
                 raise commands.ExtensionFailed
 
@@ -88,7 +88,7 @@ class AutoRole(commands.Cog):
         try:
             await ctx.reply(text)
         except discord.Forbidden:
-            print("autorole: Missing permissions to reply.")
+            print("autorole: Missing permissions to reply")
 
         print("autorole: %s" % text)
 
@@ -105,14 +105,14 @@ class AutoRole(commands.Cog):
         # Add the role to the new member
         try:
             await member.add_roles(role)
-            print("autorole: Role '%s' added to %s." % (role.name, member))
+            print("autorole: Role '%s' added to %s" % (role.name, member))
 
         except discord.Forbidden:
-            print("autorole: Missing permissions to add role '%s' to %s."
+            print("autorole: Missing permissions to add role '%s' to %s"
                   % (role.name, member))
 
         except discord.HTTPException:
-            print("autorole: Failed to add role '%s' to %s."
+            print("autorole: Failed to add role '%s' to %s"
                   % (role.name, member))
 
     ### !--- CHECKS & COMMANDS ---! ###
