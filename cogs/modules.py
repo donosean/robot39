@@ -219,8 +219,8 @@ class Modules(commands.Cog):
         return await self.database_action(DatabaseAction.fetch_user, uid)
 
     # Adds or removes a module (module_id) from a player (uid)
-    async def manage_player_collection(self, action: str,
-                                       uid: int, module_id: str):
+    async def manage_player_collection(self, uid: int,
+                                       module_id: str,action: str):
         # Register user if uid is not in the cache
         if not uid in self.player_ids:
             await self.add_player_by_uid(uid)
