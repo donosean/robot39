@@ -1,7 +1,7 @@
 import discord
 from discord.ext import commands
 
-# Set bot intends and command prefix
+# Set bot intents and command prefix
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix="39!", intents=intents)
 
