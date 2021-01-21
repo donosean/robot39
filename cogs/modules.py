@@ -40,11 +40,6 @@ class Modules(commands.Cog):
         
         self.min_msgs_before_drop = 20
         self.initial_drop_percent = 5
-        
-        self.replace_existing_drops = True
-        self.blitz_min_msg = 0
-        self.blitz_initial_percent = 90
-        self.blitz_duration_in_seconds = 60
 
         # List of CSV files to load module info from at load
         self.csv_list = [
@@ -99,7 +94,7 @@ class Modules(commands.Cog):
             self.database = psycopg2.connect(self.DATABASE_URL,
                                              sslmode='require')
             self.database.autocommit = True
-            print("modules: Connected to database.")
+            print("modules: Connected to database")
 
         except:
             print("modules: Error connecting to the database!")
@@ -424,38 +419,6 @@ class Modules(commands.Cog):
     async def remove_vp(self, ctx, amount: int, uid: int):
         await self.remove_vp_from_player(uid, amount)
 
-    # Temporarily gives massive boost to drop rates
-    @commands.command()
-    @commands.is_owner()
-    async def blitz(self, ctx):
-        #reset guild message counter
-        self.message_count[ctx.guild.id] = 0
-
-        #temp store pre-bliz values
-        previous_values = {
-            'min_msg': self.min_msgs_before_drop,
-            'initial_percent': self.initial_drop_percent
-        }
-
-        #avoid drops constantly being replaced due to high drop rates
-        self.replace_existing_drops = False
-
-        #replace with blitz values
-        self.min_msgs_before_drop = self.blitz_min_msg
-        self.initial_drop_percent = self.blitz_initial_percent
-
-        #send announcement and wait
-        await ctx.send("**! BLITZ IS NOW ACTIVE !**\nModule drop rates ***WAY*** up for %s second(s)." % self.blitz_duration_in_seconds)
-        await asyncio.sleep(self.blitz_duration_in_seconds)
-
-        #return to their previous values pre-blitz
-        self.min_msgs_before_drop = previous_values['min_msg']
-        self.initial_drop_percent = previous_values['initial_percent']
-        self.replace_existing_drops = True
-
-        #send final announcement
-        await ctx.send("**! BLITZ FINISHED !**\nModule drop rates have returned to normal.")
-
     # Displays module (module_id) in context channel
     @commands.command()
     @commands.is_owner()
@@ -520,7 +483,7 @@ class Modules(commands.Cog):
         module = await self.fetch_module_info(module_id)
         module_name = module["ENG Name"]
         await ctx.reply("Redeemed %s! You gained 100 VP." % module_name)
-        print("modules: %s redeemed by %s." % (module_id, ctx.author))
+        print("modules: %s redeemed by %s" % (module_id, ctx.author))
 
     # Gives module (module_id) to mentioned player if module is owned by author
     @commands.command()
@@ -545,14 +508,15 @@ class Modules(commands.Cog):
 
         # You can't give something to yourself
         if receiving_user == ctx.author:
-            await ctx.reply("You took the module card out of your left pocket,"
-                            " and moved it into your right. Good job.")
+            await ctx.reply(
+                "You took the module card out of your left pocket,"
+                " and moved it into your right. Good job.")
             return
 
         # You can't give something to a bot account
         if receiving_user.bot:
-            await ctx.reply("The bot appreciates the gesture,"
-                            " but politely declines.")
+            await ctx.reply(
+                "The bot appreciates the gesture, but politely declines.")
             return
 
         # Register receiving_user if they're a new player
@@ -566,144 +530,151 @@ class Modules(commands.Cog):
         # Send reply
         module = await self.fetch_module_info(module_id)
         module_name = module["ENG Name"]
-        await ctx.reply("You gave %s -- %s to %s."
-                        % (module_id, module_name, receiving_user.mention))
-        print("modules: %s given to %s by %s."
+        await ctx.reply(
+            "You gave %s -- %s to %s."
+            % (module_id, module_name, receiving_user.mention))
+        print("modules: %s given to %s by %s"
               % (module_id, ctx.author, receiving_user))
 
-    #gives module from module id to mentioned player if module is owned
+    # Gives VP (amount) to mentioned player if author has enough
     @commands.command()
     async def give_vp(self, ctx, amount: int, receiving_user: discord.Member):
-        #register user if not already
+        # Register and return if author isn't registered already
         if not ctx.author.id in self.player_ids:
             await self.add_player_by_uid(ctx.author.id)
             return
 
-        #do nothing if not a possible amount to transfer
+        # Do nothing if invalid VP amount specified
         if amount < 1:
             return
 
-        #fetch player_info and current points amount
+        # Fetch author's player info and current VP amount
         player_info = await self.fetch_player_info_by_uid(ctx.author.id)
         player_points = player_info[2]
     
-        #check player has enough points
+        # Check author has enough VP to give
         if amount > player_points:
             await ctx.reply("You don't have enough VP to do that, sorry!")
             return
 
+        # You can't give VP to yourself
         if receiving_user == ctx.author:
-            await ctx.reply("You transferred the VP to a separate save file you were playing on. Or something like that.")
+            await ctx.reply("Congratulations, you paid yourself.")
             return
 
+        # You can't give VP to a bot account
         if receiving_user.bot:
-            await ctx.reply("The bot appreciates the gesture, but politely declines.")
+            await ctx.reply(
+                "The bot appreciates the gesture, but politely declines.")
             return
 
-        #register receiving user if not already
+        # Register the receiving user if they're a new player
         if not receiving_user.id in self.player_ids:
             await self.add_player_by_uid(receiving_user.id)
 
-        #swap the VP amount between players
+        # Swap the VP between players and reply
         await self.remove_vp_from_player(ctx.author.id, amount)
         await self.add_vp_to_player(receiving_user.id, amount)
-
-        await ctx.reply("You gave %s VP to %s." % (amount, receiving_user.mention))
-        print("modules: %s VP given to %s by %s." % (amount, receiving_user, ctx.author))
+        await ctx.reply(
+            "You gave %s VP to %s." % (amount, receiving_user.mention))
+        print(
+            "modules: %s VP given to %s by %s"
+            % (amount, receiving_user, ctx.author))
     
-    #gives random module and medium amount of VP, usable once a day per user
+    # Gives a random module and 500 VP to the author, usable once per day
     @commands.command()
     async def daily(self, ctx):
-        #register user if not already
+        # Register author if they're a new player
         if not ctx.author.id in self.player_ids:
             await self.add_player_by_uid(ctx.author.id)
 
-        #fetch player info and todays day of the month as str
+        # Fetch author's player info and today's date for checking daily status
         player_info = await self.fetch_player_info_by_uid(ctx.author.id)  
         today = str(date.today())
 
-        #only continue if daily isn't marked as redeemed
+        # Check if daily was already redeemed today
         if today == player_info[4]:
             await ctx.reply("You've already redeemed your daily for today!")
             return
 
-    	#roll random module and add to collection with daily VP bonus
+    	# Add random module & 500 VP to author
         module_id = await self.roll_module_id()
         await self.add_module_to_player(ctx.author.id, module_id)
         await self.add_vp_to_player(ctx.author.id, amount=500)
 
-        #prepare embed to show to user
+        # Get image and embed for the new module
         file = await self.get_module_file(module_id)
         embed = embed=discord.Embed(title="Daily Redeemed", color=0x80ffff)
         embed = await self.fill_module_embed(module_id, embed)
         embed.add_field(name="** **", value="You gained 500 VP.")
 
-        #send the embed to the user and mark their daily as completed
-        await ctx.send(file=file, embed=embed)        
+        # Mark the daily as redeemed and reply to author
         await self.mark_daily_as_redeemed(ctx.author.id, today)
-        print("modules: Daily redeemed by %s." % ctx.author)
+        await ctx.send(file=file, embed=embed)        
+        print("modules: Daily redeemed by %s" % ctx.author)
 
-    #allows players to spend VP to roll a random card and pay extra to specify a set
+    # Player can buy a random module for 1000 VP or specify a set for 1500 VP
     @commands.command(name='purchase', aliases=['buy'])
     async def purchase(self, ctx, module_set: str = None):
-        #register user if not already
+        # Register author if they're a new player
         if not ctx.author.id in self.player_ids:
             await self.add_player_by_uid(ctx.author.id)
 
-        #fetch player info
+        # Fetch player info and current VP
         player_info = await self.fetch_player_info_by_uid(ctx.author.id)
         player_points = player_info[2]
 
-        #only continue if player can afford to roll
-        if module_set:
-            if not module_set in self.modules_dict:
-                await ctx.reply("That is not a valid module set!")
-                return
-            vp_cost = 1500
-        else:
-            vp_cost = 1000
+        # Check the module set is valid if specified
+        if module_set and not module_set in self.modules_dict:
+            await ctx.reply("That is not a valid module set!")
+            return
         
+        # Check the player can afford the option chosen
+        vp_cost = 1500 if module_set else 1000
         if player_points < vp_cost:
-            await ctx.reply("You must have at least %s VP to perform that action." % vp_cost)
+            await ctx.reply(
+                "You must have at least %s VP to perform that action."
+                % vp_cost)
             return
 
-    	#roll random module and add to collection with daily VP bonus
+    	# Add random module to author's collection and remove VP cost
         module_id = await self.roll_module_id(module_set=module_set)
         await self.add_module_to_player(ctx.author.id, module_id)
         await self.remove_vp_from_player(ctx.author.id, amount=vp_cost)
 
-        #prepare embed to show to user
+        # Get module image & embed and send reply
         file = await self.get_module_file(module_id)
         embed = embed=discord.Embed(title="Rolled Module", color=0x80ffff)
         embed = await self.fill_module_embed(module_id, embed)
         embed.add_field(name="** **", value="You spent %s VP." % vp_cost)
-
-        #send the embed to the user
         await ctx.send(file=file, embed=embed)        
-        print("modules: %s rolled a module." % ctx.author)
+        print("modules: %s rolled a module" % ctx.author)
 
-    #displays member profile stats including collection & VP
+    # Displays player collection stats including VP and completion percentage
     @commands.command()
     async def modules(self, ctx):
-        #register player if not already
+        # Register author if they're a new player
         if not ctx.author.id in self.player_ids:
             await self.add_player_by_uid(ctx.author.id)
 
-        #fetch player info incl. modules collection
+        # Fetch player info from database
         player_info = await self.fetch_player_info_by_uid(ctx.author.id)
 
-        #convert module collection from list to set to remove duplicates
+        # Convert player collection to set to remove duplicates
         collection_set = {}
         if player_info[3]:
             collection_set = set(player_info[3])
 
-        #get a count of how many modules from each set the player has
+        # Count number of modules player has in each set
         collection_counts = {}
         for module_set in self.csv_list:
-            collection_counts[module_set] = len([module_id for module_id in collection_set if module_id.startswith(module_set)])
+            collection_counts[module_set] =\
+                len([module_id for module_id in collection_set
+                    if module_id.startswith(module_set)])
 
-        #create embed for player info
-        embed = embed=discord.Embed(title="Module Collection Stats", color=0x80ffff)
+        # Create embed containing player stats
+        embed = embed=discord.Embed(title="Module Collection Stats",
+                                    color=0x80ffff)
         embed.set_thumbnail(url=ctx.message.author.avatar_url)
         embed.set_footer(text="Use command 39!collection to view a full list")
         embed.add_field(name="User:", value=ctx.author.mention, inline=True)
@@ -711,93 +682,87 @@ class Modules(commands.Cog):
 
         embed.add_field(name="Collection:", value="** **", inline=False)
 
-        #add field to the embed for each module set
+        # Add an embed field for each module set
         for module_set in self.csv_list:
-            embed.add_field(name="%s:" % self.set_names[module_set], value="%s/%s" % (collection_counts[module_set], len(self.modules_dict[module_set])), inline=True)
+            embed.add_field(
+                name="%s:" % self.set_names[module_set],
+                value="%s/%s" 
+                    % (collection_counts[module_set],
+                       len(self.modules_dict[module_set])),
+                inline=True)
         
-        #count total available modules and % completion
-        total_modules = sum(len(module_set) for module_set in self.modules_dict.values())
-        collection_percentage = 0 if len(collection_set) == 0\
-            else round((len(collection_set) / total_modules) * 100, 2)
+        # Count total number of modules that can be collected
+        # and calculate completion percentage
+        total_modules =\
+            sum(len(module_set) for module_set in self.modules_dict.values())
+        collection_percentage =\
+            0 if len(collection_set) == 0\
+                else round((len(collection_set) / total_modules) * 100, 2)
 
-        #add overall completion & VP to embed
-        embed.add_field(name="Overall:", value="**%s/%s (%s%%)**" % (len(collection_set), total_modules, collection_percentage), inline=False)
-
-        #finally, send the embed
+        # Add overall completion and current VP to the embed and send it
+        embed.add_field(
+            name="Overall:",
+            value="**%s/%s (%s%%)**"
+                % (len(collection_set), total_modules, collection_percentage),
+            inline=False)
         await ctx.send(embed=embed)
 
-    #displays detailed list of module collection
+    # Displayed detailed list of player's module collection
     @commands.command(name='collection', aliases=['col'])
     async def collection(self, ctx, page_number: int = 1):
         await self.display_player_collection(ctx=ctx, page_number=page_number)
 
-    #same as above but only displays duplicates
+    # Same as above but only displays duplicate modules
     @commands.command(name='duplicates', aliases=['dupes', 'spares'])
     async def duplicates(self, ctx, page_number: int = 1):
-        await self.display_player_collection(ctx=ctx, page_number=page_number, duplicates_only=True)
+        await self.display_player_collection(ctx=ctx, page_number=page_number,
+                                             duplicates_only=True)
 
     ### !--- EVENTS ---! ###
     #handles random module drops
     @commands.Cog.listener()
     async def on_message(self, message):
-        #only count/track guild messages, not DMs
-        if not message.guild:
+        # Don't track DMs, bot messages, or commands
+        if (not message.guild
+                or message.author.bot
+                or message.content.startswith("39!")):
             return
 
-        #ignore messages sent by this or other bots
-        if message.author.bot:
-            return
-
-        #don't count commands towards message count
-        if message.content.startswith("39!"):
-            return
-
-        #toggled during blitzes
-        if message.guild.id in self.active_drops\
-        and not self.replace_existing_drops:
-            return
-
-        #start tracking current guild message count if not already
-        if not message.guild.id in self.message_count:
-            self.message_count[message.guild.id] = 1
-            return
-        
-        #increment message counter
-        self.message_count[message.guild.id] += 1
+        # Increment guild message counter
+        self.message_count[message.guild.id] =\
+            1 if not message.guild.id in self.message_count\
+                else self.message_count[message.guild.id] + 1
  
-        #at least x messages needed before rolling for a drop chance
+        # Check if guild message counter has reached the minimum needed
         if self.message_count[message.guild.id] < self.min_msgs_before_drop:
             return
 
-        #% chance to drop module is (min_msgs_before_drop - initial_drop_percent) + message_count
-        #increasing by 1% per message sent
+        # Roll random number up to 100 and check if it's high enough to drop
         roll = random.randint(0, 100)
-        if roll <= (self.message_count[message.guild.id] - (self.min_msgs_before_drop - self.initial_drop_percent)):
+        if roll <= (self.message_count[message.guild.id]
+                    - (self.min_msgs_before_drop - self.initial_drop_percent)):
+            # Invoke typing until message containing drop is sent
             drop_channel = self.bot.get_channel(self.drop_channel_id)
-
-            #invoke typing until message is sent
             async with drop_channel.typing():
-                #reset message count upon dropping module
+                # Reset message count and add random module to active drops
                 self.message_count[message.guild.id] = 0
-
-                #roll random module and fetch file to send
                 module_id = await self.roll_module_id()
-                file = await self.get_module_file(module_id)
-
-                #create module embed
-                embed = embed=discord.Embed(title="Module Drop", color=0x80ffff)
-                embed = await self.fill_module_embed(module_id, embed)
-                embed.add_field(name="** **", value="`39!redeem <module id>` to redeem.", inline=False)
-
-                #add to active drops
                 self.active_drops[message.guild.id] = module_id
 
-                #pause to let people see the 'typing' status
-                await asyncio.sleep(1)
+                # Get module image and create embed
+                file = await self.get_module_file(module_id)
+                embed = embed=discord.Embed(title="Module Drop", color=0x80ffff)
+                embed = await self.fill_module_embed(module_id, embed)
+                embed.add_field(
+                    name="** **",
+                    value="`39!redeem <module id>` to redeem.",
+                    inline=False)
 
-                #finally, send the message with the new module image in an embed
+                # Pause to let players see the 'typing' indicator
+                # and drop the module
+                await asyncio.sleep(1)
                 await drop_channel.send(file=file, embed=embed)
-                print("modules: Dropped %s in %s." % (module_id, drop_channel))
+                print("modules: Dropped %s in %s" % (module_id, drop_channel))
 
 
 def setup(bot):
