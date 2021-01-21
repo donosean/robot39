@@ -75,7 +75,7 @@ class Modules(commands.Cog):
                     self.modules_dict[csv_file] = []
                     for row in reader:
                         self.modules_dict[csv_file].append(row)
-                    
+
                 # Print how many entries are loaded from each CSV file
                 print("modules: Info loaded from %s.csv for %s module(s)"
                       % (csv_file, len(self.modules_dict[csv_file])))
@@ -83,7 +83,7 @@ class Modules(commands.Cog):
             except Exception as e:
                 print("modules: Error reading modules data from %s.csv\n%s"
                       % (csv_file, e))
-        
+
         # Read database URL from file
         postgres_txt = open("postgres.txt", "r")
         self.DATABASE_URL = postgres_txt.read()
@@ -164,7 +164,7 @@ class Modules(commands.Cog):
                 and module['number']-1 \
                 <= len (self.modules_dict[module['set']])):
             return True
-        
+
         # Not a valid module_id
         return False
 
@@ -186,7 +186,7 @@ class Modules(commands.Cog):
             # Add the Discord user ID to cache if a new player was registered
             if action == DatabaseAction.add_player:
                 self.player_ids.append(uid)
-            
+
             # Return the fetched info if database was queried for player info
             elif action == DatabaseAction.fetch_user:
                 return cursor.fetchone()
@@ -201,7 +201,7 @@ class Modules(commands.Cog):
     # Adds guild member to the player database to start tracking collection
     async def add_player_by_uid(self, uid: int):
         await self.database_action(DatabaseAction.add_player, uid)
-    
+
     # Marks a player's daily as redeemed in the database
     async def mark_daily_as_redeemed(self, uid: int, date: str):
         # Do nothing if uid is not registered
@@ -232,13 +232,13 @@ class Modules(commands.Cog):
         # Get player info and current module collection
         player = await self.fetch_player_info_by_uid(uid)
         player_modules = player[3]
-        
+
         # Return if player collection is already empty, or initialise empty list
         # for adding a module to an empty collection
         if not type(player_modules) == list:
             if action == "remove_module": return
             else: player_modules = []
-        
+
         # Add module_id to the player's collection
         if action == "add_module":
             player_modules.append(module_id)
@@ -290,12 +290,12 @@ class Modules(commands.Cog):
                            for each_module_set in self.csv_list]
             module_set = random.choices(
                            self.csv_list, weights=set_weights, k=1)[0]
-        
+
         # Roll random valid ID from the chosen set
         random_module = random.randint(1, len(self.modules_dict[module_set]))
         module_id = "%s-%s" % (module_set, random_module)
         return module_id
-    
+
     # Prepares an image of a module (module_id) to be posted to Discord
     async def get_module_file(self, module_id: str) -> discord.File:
         module = await self.split_module_id(module_id)
@@ -310,7 +310,7 @@ class Modules(commands.Cog):
         try:
             top_image = Image.open(module_image)
             bg_image = Image.open(card_back)
-        
+
         except FileNotFoundError:
             print("modules: Image file(s) not found for module %s" % module)
             return
@@ -337,7 +337,7 @@ class Modules(commands.Cog):
                 inline=False)
 
         return embed
-    
+
     async def display_player_collection(self, ctx, page_number: int = 1,
                                         duplicates_only: bool = False):
         # Register new player if Discord user ID is not in the cache,
@@ -352,7 +352,7 @@ class Modules(commands.Cog):
         # Do nothing if collection is empty
         if not player_collection:
             return
-        
+
         embed_title = "Module Collection List"
         command_name = "39!collection"
 
@@ -362,7 +362,7 @@ class Modules(commands.Cog):
             player_collection = list(duplicates(player_collection))
             if not player_collection:
                 return
-            
+
             # Change embed text to match command used
             embed_title = "Module Duplicates List"
             command_name = "39!duplicates"
@@ -370,7 +370,7 @@ class Modules(commands.Cog):
         # Sort player collection and split into pages of 20
         player_collection = natsorted(player_collection)
         pages = [player_collection[i:i + 20]
-                 for i in range(0, len(player_collection), 20)]  
+                 for i in range(0, len(player_collection), 20)]
 
         # Default to page 1 if page doesn't exist
         if page_number > len(pages) or page_number < 1:
@@ -390,7 +390,7 @@ class Modules(commands.Cog):
         for module_id in pages[page_number-1]:
             module = await self.fetch_module_info(module_id)
             module_list += "• %s -- %s\n" % (module_id, module['ENG Name'])
-        
+
         embed.add_field(name="Modules:", value=module_list, inline=False)
         await ctx.send(embed=embed)
 
@@ -406,13 +406,13 @@ class Modules(commands.Cog):
     @commands.is_owner()
     async def remove_module(self, ctx, module_id: str, uid: int):
         await self.remove_module_from_player(uid, module_id)
-    
+
     # Adds VP amount (amount) to player (uid)
     @commands.command()
     @commands.is_owner()
     async def add_vp(self, ctx, amount: int, uid: int):
         await self.add_vp_to_player(uid, amount)
-    
+
     # Removes VP amount (amount) from player (uid)
     @commands.command()
     @commands.is_owner()
@@ -426,7 +426,7 @@ class Modules(commands.Cog):
         # Check for valid module_id
         if not await self.is_valid_module_id(module_id):
             return
-    
+
         # Get module image and embed
         file = await self.get_module_file(module_id)
         embed = embed=discord.Embed(title="Displaying Module", color=0x80ffff)
@@ -442,14 +442,14 @@ class Modules(commands.Cog):
             await self.add_player_by_uid(ctx.author.id)
             return
 
-        # Check for valid module_id        
+        # Check for valid module_id
         if not await self.is_valid_module_id(module_id):
             return
 
         # Fetch player_info and create list of collection
         player_info = await self.fetch_player_info_by_uid(ctx.author.id)
         player_collection = player_info[3]
-    
+
         # Check module_id exists in the player's collection
         if not module_id in player_collection:
             await ctx.reply("You do not own that module, sorry!")
@@ -478,7 +478,7 @@ class Modules(commands.Cog):
         del(self.active_drops[ctx.guild.id])
         await self.add_module_to_player(ctx.author.id, module_id)
         await self.add_vp_to_player(ctx.author.id, amount=100)
-        
+
         # Send reply message
         module = await self.fetch_module_info(module_id)
         module_name = module["ENG Name"]
@@ -500,7 +500,7 @@ class Modules(commands.Cog):
         # Fetch player info and module collection
         player_info = await self.fetch_player_info_by_uid(ctx.author.id)
         player_collection = player_info[3]
-    
+
         # Check that collection isn't empty and module_id is owned
         if (not player_collection) or (not module_id in player_collection):
             await ctx.reply("You do not own that module, sorry!")
@@ -526,7 +526,7 @@ class Modules(commands.Cog):
         # Swap the module between players
         await self.remove_module_from_player(ctx.author.id, module_id)
         await self.add_module_to_player(receiving_user.id, module_id)
-        
+
         # Send reply
         module = await self.fetch_module_info(module_id)
         module_name = module["ENG Name"]
@@ -551,7 +551,7 @@ class Modules(commands.Cog):
         # Fetch author's player info and current VP amount
         player_info = await self.fetch_player_info_by_uid(ctx.author.id)
         player_points = player_info[2]
-    
+
         # Check author has enough VP to give
         if amount > player_points:
             await ctx.reply("You don't have enough VP to do that, sorry!")
@@ -580,7 +580,7 @@ class Modules(commands.Cog):
         print(
             "modules: %s VP given to %s by %s"
             % (amount, receiving_user, ctx.author))
-    
+
     # Gives a random module and 500 VP to the author, usable once per day
     @commands.command()
     async def daily(self, ctx):
@@ -589,7 +589,7 @@ class Modules(commands.Cog):
             await self.add_player_by_uid(ctx.author.id)
 
         # Fetch author's player info and today's date for checking daily status
-        player_info = await self.fetch_player_info_by_uid(ctx.author.id)  
+        player_info = await self.fetch_player_info_by_uid(ctx.author.id)
         today = str(date.today())
 
         # Check if daily was already redeemed today
@@ -610,7 +610,7 @@ class Modules(commands.Cog):
 
         # Mark the daily as redeemed and reply to author
         await self.mark_daily_as_redeemed(ctx.author.id, today)
-        await ctx.send(file=file, embed=embed)        
+        await ctx.send(file=file, embed=embed)
         print("modules: Daily redeemed by %s" % ctx.author)
 
     # Player can buy a random module for 1000 VP or specify a set for 1500 VP
@@ -628,7 +628,7 @@ class Modules(commands.Cog):
         if module_set and not module_set in self.modules_dict:
             await ctx.reply("That is not a valid module set!")
             return
-        
+
         # Check the player can afford the option chosen
         vp_cost = 1500 if module_set else 1000
         if player_points < vp_cost:
@@ -647,7 +647,7 @@ class Modules(commands.Cog):
         embed = embed=discord.Embed(title="Rolled Module", color=0x80ffff)
         embed = await self.fill_module_embed(module_id, embed)
         embed.add_field(name="** **", value="You spent %s VP." % vp_cost)
-        await ctx.send(file=file, embed=embed)        
+        await ctx.send(file=file, embed=embed)
         print("modules: %s rolled a module" % ctx.author)
 
     # Displays player collection stats including VP and completion percentage
@@ -690,7 +690,7 @@ class Modules(commands.Cog):
                     % (collection_counts[module_set],
                        len(self.modules_dict[module_set])),
                 inline=True)
-        
+
         # Count total number of modules that can be collected
         # and calculate completion percentage
         total_modules =\
@@ -732,7 +732,7 @@ class Modules(commands.Cog):
         self.message_count[message.guild.id] =\
             1 if not message.guild.id in self.message_count\
                 else self.message_count[message.guild.id] + 1
- 
+
         # Check if guild message counter has reached the minimum needed
         if self.message_count[message.guild.id] < self.min_msgs_before_drop:
             return
