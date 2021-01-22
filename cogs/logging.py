@@ -1,203 +1,245 @@
 import discord
 from discord.ext import commands, tasks
 
+from itertools import product
+
+
 class Logging(commands.Cog):
 
-    ### !--- INIT ---! ###
     def __init__(self, bot):
         self.bot = bot
-        ### !-- CONFIGURABLE ---! ###
+        self.invites = []
         self.logs_channel_id = 788552632855822377
-        self.log_events = {
-            "ban":True,
-            "delete":True,
-            "edit":True,
-            "invite":True,
-            "join":True,
-            "leave":True
-        }
-        ### !--- • ---! ###
+        self.guild_id = 253731475751436289
 
-        self.invites = None
         self.logging_loop.start()
 
+    ### !--- METHODS ---! ###
+    # Cancels currently running loops if the cog is unloaded
     def cog_unload(self):
         self.logging_loop.cancel()
 
+    # Caches list of currently active invites in the guild
     async def update_invites_cache(self):
-        self.invites = await self.bot.guilds[0].invites()
-        print("logging: Invite cache updated.")
+        guild = await self.bot.fetch_guild(self.guild_id)
+        self.invites = await guild.invites()
+        print("logging: Invite cache updated")
 
     ### !--- EVENTS ---! ###
+    # Updates the invites cache and posts in the
+    # logs channel when a new invite is created
     @commands.Cog.listener()
     async def on_invite_create(self, invite):
+        if not invite.guild.id == self.guild_id:
+            return
+
+        # Update invites cache and post event to the terminal
         await self.update_invites_cache()
-        if self.log_events["invite"]:
-            print("logging: Invite code %s created by %s" % (invite.code, invite.inviter))
-            
-            #create embed to post in logs channel
-            embed=discord.Embed(title="Invite Created", color=0x80ffff)
-            embed.add_field(name="Code:", value=invite.code, inline=False)
-            embed.add_field(name="Created by:", value=invite.inviter, inline=False)
-            embed.set_thumbnail(url=invite.inviter.avatar_url)
+        print("logging: Invite code %s created by %s"
+            % (invite.code, invite.inviter))
 
-            #fetch logs channel and send embed
-            logs_channel = self.bot.get_channel(self.logs_channel_id)
-            await logs_channel.send(embed=embed)
+        # Create embed to post in logs channel
+        embed=discord.Embed(title="Invite Created", color=0x80ffff)
+        embed.add_field(name="Code:", value=invite.code, inline=False)
+        embed.add_field(name="Created by:", value=invite.inviter, inline=False)
+        embed.set_thumbnail(url=invite.inviter.avatar_url)
 
+        # Fetch logs channel and send embed
+        logs_channel = self.bot.get_channel(self.logs_channel_id)
+        await logs_channel.send(embed=embed)
+
+    # Updates the invites cache when an invite is deleted
     @commands.Cog.listener()
     async def on_invite_delete(self, invite):
-        await self.update_invites_cache()
-        print("logging: Invite code %s deleted." % invite.code)
+        if not invite.guild.id == self.guild_id:
+            return
 
+        await self.update_invites_cache()
+        print("logging: Invite code %s deleted" % invite.code)
+
+    # Posts in the logs channel when a member is banned from the guild
     @commands.Cog.listener()
     async def on_member_ban(self, guild, member):
-        if self.log_events["ban"]:
-            #fetch ban event from audit logs
-            async for entry in guild.audit_logs(action=discord.AuditLogAction.ban, limit=1):
-                print("logging: Member %s was banned by %s" % (member, entry.user)) 
+        if not guild.id == self.guild_id:
+            return
 
-                #create embed to post in logs channel
-                embed=discord.Embed(title="Member Banned", color=0x80ffff)
-                embed.add_field(name="Member:", value=member.mention, inline=False)
-                embed.add_field(name="Banned by:", value=entry.user.mention, inline=False)
-                embed.set_thumbnail(url=member.avatar_url)
+        # Checks the audit log for a ban entry involving the member
+        async def find_ban_entry(guild, member):
+            async for entry in guild.audit_logs(
+                    action=discord.AuditLogAction.ban, limit=1):
+                if entry.target == member:
+                    return entry
+            # Return None if the audit log entry didn't match
+            return None
 
-                #fetch logs channel and send embed
-                logs_channel = self.bot.get_channel(self.logs_channel_id)
-                await logs_channel.send(embed=embed)
+        # Try to find the ban entry for the member
+        ban_entry = await find_ban_entry(guild, member)
+        moderator = ban_entry.user.mention if ban_entry else "Unknown"
 
+        # Print event to the terminal
+        print("logging: Member %s was banned by %s" % (member, moderator)) 
+
+        # Create embed to post in logs channel
+        embed=discord.Embed(title="Member Banned", color=0x80ffff)
+        embed.add_field(name="Member:", value=member.mention, inline=False)
+        embed.add_field(name="Banned by:", value=moderator, inline=False)
+        embed.set_thumbnail(url=member.avatar_url)
+
+        # Fetch logs channel and send embed
+        logs_channel = self.bot.get_channel(self.logs_channel_id)
+        await logs_channel.send(embed=embed)
+
+    # Posts in the logs channel when a new member
+    # joins the guild and updates the invites cache
     @commands.Cog.listener()
     async def on_member_join(self, member):
-        if self.log_events["join"]:
-            #fetch current invites of server after member join
-            invites_after_join = await member.guild.invites()
+        if not member.guild.id == self.guild_id:
+            return
 
-            #finds the invite in invites_after that has more uses than its invites_before counterpart
-            def find_used_invite(invites_before, invites_after):
-                for invite in invites_before:
-                    for invite2 in invites_after:
-                        if (invite.code == invite2.code) and (invite.uses < invite2.uses):
-                            return invite2
-                
-                #return False if invites are somehow identical
-                return False
+        # Fetch current invites of guild after the member joined
+        invites_after_join = await member.guild.invites()
 
-            invite_used = find_used_invite(self.invites, invites_after_join)
+        # Compares invites cache to invites after the member joined, looking
+        # for the invite with an increased uses count since joining
+        def find_used_invite(invites_before, invites_after):
+            for invites in product(invites_before, invites_after):
+                if (invites[0].code == invites[1].code
+                        and invites[0].uses < invites[1].uses):
+                    return invites[0]
 
-            #print to terminal
-            print("logging: Member %s joined via invite from %s" % (member, invite_used.inviter))
+            # If invite can't be found
+            return None
 
-            #create embed to post in logs channel
-            embed=discord.Embed(title="Member Joined", color=0x80ffff)
-            embed.add_field(name="Member:", value=member.mention, inline=False)
-            embed.add_field(name="Invited by:", value=invite_used.inviter.mention, inline=False)
-            embed.add_field(name="Invite code:", value=invite_used.code, inline=False)
-            embed.set_thumbnail(url=member.avatar_url)
+        # Try to find which invite was used
+        invite_used = find_used_invite(self.invites, invites_after_join)
+        inviter = invite_used.inviter.mention if invite_used else "Unknown"
+        invite_code = invite_used.code if invite_used else "Unknown"
 
-            #fetch logs channel and send embed
-            logs_channel = self.bot.get_channel(self.logs_channel_id)
-            await logs_channel.send(embed=embed)
+        # Print event to the terminal
+        print("logging: Member %s joined via invite from %s" 
+              % (member, inviter))
 
-            self.invites = invites_after_join
+        # Create embed to post in logs channel
+        embed=discord.Embed(title="Member Joined", color=0x80ffff)
+        embed.set_thumbnail(url=member.avatar_url)
+        embed.add_field(name="Member:", value=member.mention, inline=False)
+        embed.add_field(name="Invited by:", value=inviter, inline=False)
+        embed.add_field(name="Invite code:", value=invite_code, inline=False)
 
+        # Fetch logs channel and send embed
+        logs_channel = self.bot.get_channel(self.logs_channel_id)
+        await logs_channel.send(embed=embed)
+
+        # Update invites cache
+        await self.update_invites_cache()
+
+    # Posts in the logs channel when a member leaves/is kicked
     @commands.Cog.listener()
     async def on_member_remove(self, member):
-        if self.log_events["leave"]:
-            #print to terminal
-            print("logging: Member %s left the server." % member)
+        if not member.guild.id == self.guild_id:
+            return
 
-            #create embed to post in logs channel
-            embed=discord.Embed(title="Member Left", color=0x80ffff)
-            embed.add_field(name="Member:", value=member.mention, inline=False)
-            embed.set_thumbnail(url=member.avatar_url)
+        # Print event to the terminal
+        print("logging: Member %s left the server" % member)
 
-            #fetch logs channel and send embed
-            logs_channel = self.bot.get_channel(self.logs_channel_id)
-            await logs_channel.send(embed=embed)
+        # Create embed to post in the logs channel
+        embed=discord.Embed(title="Member Left", color=0x80ffff)
+        embed.set_thumbnail(url=member.avatar_url)
+        embed.add_field(name="Member:", value=member.mention, inline=False)
 
+        # Fetch logs channel and send embed
+        logs_channel = self.bot.get_channel(self.logs_channel_id)
+        await logs_channel.send(embed=embed)
+
+    # Posts before & after content of edited messages to the logs channel
     @commands.Cog.listener()
     async def on_message_edit(self, before, after):
-        if (self.log_events["edit"]) and (not before.author.bot) and (not before.content == after.content):
-            #print deleted message + author to log
-            print("logging: Message edited by %s in %s" % (before.author, before.channel.name))
+        if not before.guild.id == self.guild_id:
+            return
 
-            #check for empty message content due to embeds not allowing empty fields
-            if len(before.content) > 0:
-                msg_content_before = before.content
-            else:
-                msg_content_before = "No content or message contains link/embed"
-            
-            if len(after.content) > 0:
-                msg_content_after = after.content
-            else:
-                msg_content_after = "No content or message contains link/embed"
+        # Ignore bot messages or messages with the same content
+        if before.author.bot or before.content == after.content:
+            return
 
-            #create embed to post in logs channel
-            embed=discord.Embed(title="Message Edited", color=0x80ffff)
-            embed.add_field(name="Message was posted:", value="by %s\nin %s" % (before.author.mention, before.channel.mention), inline=False)
-            embed.add_field(name="Before edit:", value=msg_content_before, inline=False)
-            embed.add_field(name="After edit:", value=msg_content_after, inline=False)
-            embed.add_field(name="Jump to message:", value="[[Click Here]](%s)" % before.jump_url, inline=False)
-            embed.set_thumbnail(url=before.author.avatar_url)
+        # Print author & channel name to the terminal
+        print("logging: Message edited by %s in %s"
+              % (before.author, before.channel.name))
 
-            #fetch logs channel and send embed
-            logs_channel = self.bot.get_channel(self.logs_channel_id)
-            await logs_channel.send(embed=embed)
+        # Check for empty message content in before/after message
+        msg_content_before = before.content if len(before.content) > 0\
+            else "No content or message contains link/embed"
+        msg_content_after = after.content if len(after.content) > 0\
+            else "No content or message contains link/embed"
 
-            #also repost any embeds contained in the deleted message
-            if len(before.embeds) > 0:
-                await logs_channel.send("**Deleted embeds:**")
-                for embed in before.embeds:
-                    await logs_channel.send(embed=embed)
+        # Create embed to post in logs channel
+        embed=discord.Embed(title="Message Edited", color=0x80ffff)
+        embed.set_thumbnail(url=before.author.avatar_url)
+        embed.add_field(
+            name="Message was posted:",
+            value="by %s\nin %s"
+                % (before.author.mention, before.channel.mention),
+            inline=False)
+        embed.add_field(
+            name="Before edit:",
+            value=msg_content_before,
+            inline=False)
+        embed.add_field(
+            name="After edit:",
+            value=msg_content_after,
+            inline=False)
+        embed.add_field(
+            name="Jump to message:",
+            value="[[Click Here]](%s)"
+                % before.jump_url,
+            inline=False)
 
+        # Fetch logs channel and send embed
+        logs_channel = self.bot.get_channel(self.logs_channel_id)
+        await logs_channel.send(embed=embed)
+
+    # Posts content of deleted messages to the logs channel
     @commands.Cog.listener()
     async def on_message_delete(self, message):
-        if self.log_events["delete"]:
-            #print deleted message + author to log
-            print("logging: Message from %s was deleted in %s" % (message.author, message.channel))
+        if not message.guild.id == self.guild_id:
+            return
 
-            #don't repost messages deleted from logs channel
-            if not message.channel.id == self.logs_channel_id:
+        # Print author & channel name to the terminal
+        print("logging: Message from %s was deleted in %s"
+              % (message.author, message.channel))
 
-                #check for empty message content due to embeds not allowing empty fields
-                if len(message.content) > 0:
-                    msg_content = message.content
-                else:
-                    msg_content = "No content or message contains link/embed"
+        # Don't repost messages deleted from the logs channel
+        if message.channel.id == self.logs_channel_id:
+            return
 
-                #create embed to post in logs channel
-                embed=discord.Embed(title="Message Deleted", color=0x80ffff)
-                embed.add_field(name="Message was posted:", value="by %s\nin %s" % (message.author.mention, message.channel.mention), inline=False)
-                embed.add_field(name="Mesage content:", value=msg_content, inline=False)
-                embed.set_thumbnail(url=message.author.avatar_url)
+        # Check for empty message content
+        msg_content = message.content if len(message.content) > 0\
+            else "No content or message contains link/embed"
 
-                #fetch logs channel and send embed
-                logs_channel = self.bot.get_channel(self.logs_channel_id)
+        # Create embed to post in logs channel
+        embed=discord.Embed(title="Message Deleted", color=0x80ffff)
+        embed.set_thumbnail(url=message.author.avatar_url)
+        embed.add_field(
+            name="Message was posted:",
+            value="by %s\nin %s"
+                % (message.author.mention, message.channel.mention),
+            inline=False)
+        embed.add_field(
+            name="Mesage content:",
+            value=msg_content,
+            inline=False)
+
+        # Fetch logs channel and send embed
+        logs_channel = self.bot.get_channel(self.logs_channel_id)
+        await logs_channel.send(embed=embed)
+
+        # Post any embeds contained in the deleted message
+        if len(message.embeds) > 0:
+            await logs_channel.send("*Message contained these embeds:*")
+            for embed in message.embeds:
                 await logs_channel.send(embed=embed)
 
-                #also repost any embeds contained in the deleted message
-                if len(message.embeds) > 0:
-                    await logs_channel.send("**Deleted embeds:**")
-                    for embed in message.embeds:
-                        await logs_channel.send(embed=embed)
-    
-    ### !--- CHECKS & COMMANDS ---! ###
-    async def cog_check(self, ctx):
-        if await ctx.bot.is_owner(ctx.author):
-            return True
-        else:
-            raise commands.NotOwner('You do not own this bot.')
-    
-    @commands.command()
-    async def logging(self, ctx, toggle:str=None):
-        if (not toggle == None) and (toggle in self.log_events):
-            self.log_events[toggle] = True if self.log_events[toggle] == False else False
-            toggle_message = "logging: %s set to %s" % (toggle, self.log_events[toggle]) 
-            await ctx.send(toggle_message)
-            print(toggle_message)
-
     ### !--- TASKS ---! ###
+    # Updates the invite cache once upon loading the cog, then doesn't run again
     @tasks.loop(minutes=1.0)
     async def logging_loop(self):
         await self.update_invites_cache()
@@ -207,6 +249,6 @@ class Logging(commands.Cog):
     async def before_logging_loop(self):
         await self.bot.wait_until_ready()
 
-### !--- SETUP ---! ###
+
 def setup(bot):
     bot.add_cog(Logging(bot))
