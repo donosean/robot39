@@ -24,7 +24,7 @@ class Owner(commands.Cog):
 
         except discord.Forbidden:
             print("owner: Missing permissions to reply.")
-        
+
         print("owner: %s" % text)
 
     # Reloads/loads/unloads a cog depending on given CogAction
@@ -41,7 +41,7 @@ class Owner(commands.Cog):
             elif action == CogAction.unload:
                 self.bot.unload_extension("cogs.%s" % cog)
                 await self.say(ctx, "Cog '%s' has been unloaded." % cog)
-        
+
         except commands.ExtensionNotLoaded:
             await self.say(ctx, "Cog '%s' is not loaded." % cog)
 
@@ -55,8 +55,8 @@ class Owner(commands.Cog):
             await self.say(ctx, "Cog '%s' has no setup function." % cog)
 
         except commands.ExtensionFailed:
-            await self.say(ctx, "Cog '%s' had a setup function error." % cog)
-    
+           await self.say(ctx, "Cog '%s' had a setup function error." % cog)
+
     # Sends message to a channel; can be a reply to another
     # message if a message ID is provided and reply = True
     async def send(self, ctx, channel: Union[int, discord.TextChannel],
@@ -80,16 +80,16 @@ class Owner(commands.Cog):
                 await self.say(ctx, "Replied to message by %s in %s."
                                % (reply_msg.author, channel.name))
                 await reply_msg.reply(message)
-        
+
         except discord.NotFound:
                 await self.say(ctx, "Message not found.")
-        
+
         except discord.HTTPException:
                 await self.say(ctx, "Retrieving the message failed.")
 
         except discord.Forbidden:
             await self.say(ctx, "Missing permissions to fetch/send message.")
-        
+
     ### !--- CHECKS & COMMANDS ---! ###
     # Restricts all commands in this cog to the owner of the bot
     async def cog_check(self, ctx):
@@ -113,7 +113,7 @@ class Owner(commands.Cog):
     @commands.command(name="unload_cog", aliases=["unload"])
     async def unload_cog(self, ctx, cog: str):
         await self.manage_cog(ctx, cog, CogAction.unload)
-    
+
     # Sends a message to a channel given by channel ID/mention
     @commands.command(name="send_message", aliases=["send", "message"])
     async def send_message(self, ctx, channel: Union[int, discord.TextChannel],
@@ -121,7 +121,7 @@ class Owner(commands.Cog):
         # Join *msg arguments into one string and pass on to send method
         message = ' '.join(msg)
         await self.send(ctx, channel, message)
-    
+
     # Sends a reply to a message given by channel ID/mention and message ID
     @commands.command(name="send_reply", aliases=["reply"])
     async def send_reply(self, ctx, channel: Union[int, discord.TextChannel],
