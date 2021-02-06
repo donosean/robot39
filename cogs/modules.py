@@ -397,25 +397,29 @@ class Modules(commands.Cog):
     ### !--- COMMANDS ---! ###
     # Adds module (module_id) to player (uid)
     @commands.command()
-    @commands.is_owner()
+    @commands.check_any(commands.is_owner(),
+                        commands.has_guild_permissions(administrator=True))
     async def add_module(self, ctx, module_id: str, uid: int):
         await self.add_module_to_player(uid, module_id)
 
-    # Removes module (module_id) from player (uid)
-    @commands.command()
-    @commands.is_owner()
-    async def remove_module(self, ctx, module_id: str, uid: int):
-        await self.remove_module_from_player(uid, module_id)
-
     # Adds VP amount (amount) to player (uid)
     @commands.command()
-    @commands.is_owner()
+    @commands.check_any(commands.is_owner(),
+                        commands.has_guild_permissions(administrator=True))
     async def add_vp(self, ctx, amount: int, uid: int):
         await self.add_vp_to_player(uid, amount)
 
+    # Removes module (module_id) from player (uid)
+    @commands.command()
+    @commands.check_any(commands.is_owner(),
+                        commands.has_guild_permissions(administrator=True))
+    async def remove_module(self, ctx, module_id: str, uid: int):
+        await self.remove_module_from_player(uid, module_id)
+
     # Removes VP amount (amount) from player (uid)
     @commands.command()
-    @commands.is_owner()
+    @commands.check_any(commands.is_owner(),
+                        commands.has_guild_permissions(administrator=True))
     async def remove_vp(self, ctx, amount: int, uid: int):
         await self.remove_vp_from_player(uid, amount)
 
