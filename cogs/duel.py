@@ -331,6 +331,7 @@ class Duel(commands.Cog):
         if not duel_max_points:
             await ctx.send("That's not a valid duel option, %s! Your choices are bo3, bo5, or bo9 for a best of 3, 5, or 9 rounds respectively.\n" % player1.mention\
                 +"Leave this option out to default to a best of 3 duel.")
+            self.duels_in_progress.remove(ctx.channel.id)
             return
 
         challenge_id = await self.issue_challenge(ctx, player1, player2, duel_type)
