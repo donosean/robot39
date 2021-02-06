@@ -399,29 +399,61 @@ class Modules(commands.Cog):
     @commands.command()
     @commands.check_any(commands.is_owner(),
                         commands.has_guild_permissions(administrator=True))
-    async def add_module(self, ctx, module_id: str, uid: int):
+    async def add_module(self, ctx, module_id: str,
+                         user: Union[discord.Member, int]):
+        if type(user) == discord.Member:
+            uid = user.id
+        else: uid = user
+
         await self.add_module_to_player(uid, module_id)
+
+        confirm_emoji = self.bot.get_emoji(741503456212418660)
+        await ctx.message.add_reaction(confirm_emoji)
 
     # Adds VP amount (amount) to player (uid)
     @commands.command()
     @commands.check_any(commands.is_owner(),
                         commands.has_guild_permissions(administrator=True))
-    async def add_vp(self, ctx, amount: int, uid: int):
+    async def add_vp(self, ctx, amount: int,
+                     user: Union[discord.Member, int]):
+        if type(user) == discord.Member:
+            uid = user.id
+        else: uid = user
+
         await self.add_vp_to_player(uid, amount)
+
+        confirm_emoji = self.bot.get_emoji(741503456212418660)
+        await ctx.message.add_reaction(confirm_emoji)
 
     # Removes module (module_id) from player (uid)
     @commands.command()
     @commands.check_any(commands.is_owner(),
                         commands.has_guild_permissions(administrator=True))
-    async def remove_module(self, ctx, module_id: str, uid: int):
+    async def remove_module(self, ctx, module_id: str, 
+                            user: Union[discord.Member, int]):
+        if type(user) == discord.Member:
+            uid = user.id
+        else: uid = user
+
         await self.remove_module_from_player(uid, module_id)
+        
+        confirm_emoji = self.bot.get_emoji(741503456212418660)
+        await ctx.message.add_reaction(confirm_emoji)
 
     # Removes VP amount (amount) from player (uid)
     @commands.command()
     @commands.check_any(commands.is_owner(),
                         commands.has_guild_permissions(administrator=True))
-    async def remove_vp(self, ctx, amount: int, uid: int):
+    async def remove_vp(self, ctx, amount: int,
+                        user: Union[discord.Member, int]):
+        if type(user) == discord.Member:
+            uid = user.id
+        else: uid = user
+
         await self.remove_vp_from_player(uid, amount)
+
+        confirm_emoji = self.bot.get_emoji(741503456212418660)
+        await ctx.message.add_reaction(confirm_emoji)
 
     # Displays module (module_id) in context channel
     @commands.command()
