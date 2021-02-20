@@ -8,6 +8,7 @@ import asyncio
 import ast
 import csv
 import psycopg2
+import random
 import secrets
 
 class Duel(commands.Cog):
@@ -288,6 +289,11 @@ class Duel(commands.Cog):
         random_song = secrets.choice(shared_songs_list)
         await ctx.send("Rolled a random song that %s and %s have in common...\nYour random song roll is: **%s**" % (player1, player2, random_song))
         print("duel: Rolled random song for %s and %s" % (player1, player2))
+    
+    @commands.command()
+    async def exex(self, ctx):
+        response = "Sure, play the ExEx." if random.choice([0,1]) == 0 else "Go with Extreme on this one."
+        await ctx.reply(response)
 
     ### !--- DUEL LOGIC & CHALLENGE FUNCTIONS ---! ###
     async def can_duel(self, ctx, player1, player2):
@@ -580,6 +586,7 @@ class Duel(commands.Cog):
 
             await ctx.send(embed=embed)
     """
+
     ### !--- EVENTS ---! ###
     @commands.Cog.listener()
     async def on_raw_reaction_add(self, payload):
