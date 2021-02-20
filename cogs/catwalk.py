@@ -11,7 +11,7 @@ class Catwalk(commands.Cog):
         self.last_reminder_msg = None
 
         ### !--- CONFIGURABLE ---! ###
-        self.catwalk_weekdays = [2, 5] # Weekdays starting at 0 = Monday
+        self.catwalk_weekdays = [2] # Weekdays starting at 0 = Monday
         self.catwalk_hour = 15 # Hour of catwalk in UTC (10:00am EST)
         self.reminder_hours = [3, 12, 14] # Hours to send reminder at in UTC
         self.catwalk_channel_id = 748468857064390747 
@@ -54,6 +54,11 @@ class Catwalk(commands.Cog):
         if not time.minute == 0:
             return
 
+        # Only run on the same day as the catwalk event or the day before
+        if not any([time.weekday(), time.weekday()+1]) in self.catwalk_weekdays:
+            print("catwalk: Reminder check at: %s" % time)
+            return
+
         # Get catwalk event channel and check it exists
         catwalk_channel = self.bot.get_channel(self.catwalk_channel_id)
         if not catwalk_channel:
@@ -64,49 +69,43 @@ class Catwalk(commands.Cog):
         ping_role = discord.utils.get(catwalk_channel.guild.roles,
                                       name=self.ping_role)
 
-        # Only run on the same day as the catwalk event
-        if time.weekday() in self.catwalk_weekdays:
-            try:
-                # Send message and ping for catwalk event ending
-                if time.hour == self.catwalk_hour:
-                    await self.delete_last_reminder()
-                    self.last_reminder_msg = None
+        try:
+            # Only run the day before the catwalk event
+            if ((time.weekday() + 1) in self.catwalk_weekdays
+                    and time.hour == self.catwalk_hour):
+                await self.delete_last_reminder()
+                self.last_reminder_msg = \
                     await catwalk_channel.send(
-                            "%s! The current Catwalk has ended!"
-                            % ping_role.mention)
-                    print("catwalk: Catwalk finished at: %s" % time)
-                
-                # Send message and ping for catwalk event ending soon
-                elif time.hour in self.reminder_hours:
-                    await self.delete_last_reminder()
-                    self.last_reminder_msg = \
-                        await catwalk_channel.send(
-                            "%s! The current Catwalk will end in %s hour(s), at"
-                            " 10:00a.m. EST."
-                            % (ping_role.mention,
-                              (self.catwalk_hour - time.hour)))
-                    print("catwalk: Reminder sent at: %s" % time)
+                        "%s! The current Catwalk will end in 24 hour(s), at"
+                        " 10:00a.m. EST." % ping_role.mention)
+                print("catwalk: Reminder sent at: %s" % time)
 
-                # Only run the day before the catwalk event
-                elif ((time.weekday() + 1) in self.catwalk_weekdays
-                        and time.hour == self.catwalk_hour):
-                    await self.delete_last_reminder()
-                    self.last_reminder_msg = \
-                        await catwalk_channel.send(
-                            "%s! The current Catwalk will end in 24 hour(s), at"
-                            " 10:00a.m. EST." % ping_role.mention)
-                    print("catwalk: Reminder sent at: %s" % time)
+            # Send message and ping for catwalk event ending
+            elif time.hour == self.catwalk_hour:
+                await self.delete_last_reminder()
+                self.last_reminder_msg = None
+                await catwalk_channel.send(
+                        "%s! The current Catwalk has ended!"
+                        % ping_role.mention)
+                print("catwalk: Catwalk finished at: %s" % time)
             
-            except discord.Forbidden:
-                print("catwalk: Missing permissions to send reminder message")
-
-            except discord.HTTPException:
-                print("catwalk: Sending the reminder message failed")
+            # Send message and ping for catwalk event ending soon
+            elif time.hour in self.reminder_hours:
+                await self.delete_last_reminder()
+                self.last_reminder_msg = \
+                    await catwalk_channel.send(
+                        "%s! The current Catwalk will end in %s hour(s), at"
+                        " 10:00a.m. EST."
+                        % (ping_role.mention,
+                            (self.catwalk_hour - time.hour)))
+                print("catwalk: Reminder sent at: %s" % time)
         
-        # Printed when no reminder is message is posted
-        else:
-            print("catwalk: Reminder check at: %s" % time)
+        except discord.Forbidden:
+            print("catwalk: Missing permissions to send reminder message")
 
+        except discord.HTTPException:
+            print("catwalk: Sending the reminder message failed")
+            
     @catwalk_loop.before_loop
     async def before_catwalk_loop(self):
         await self.bot.wait_until_ready()
