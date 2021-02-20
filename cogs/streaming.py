@@ -32,10 +32,12 @@ class Streaming(commands.Cog):
         stream_role = discord.utils.get(member.guild.roles,
                                         name=self.streaming_role)
         if not stream_role in member.roles:
-            print("streaming: %s is now streaming, giving role...")
+            print("streaming: %s is now streaming, giving role..."
+                  % member)
             await member.add_roles(stream_role)
         else:
-            print("streaming: %s is no longer streaming, removing role...")
+            print("streaming: %s is no longer streaming, removing role..."
+                  % member)
             await member.remove_roles(stream_role)
 
     ### !--- EVENTS ---! ###
