@@ -154,7 +154,7 @@ class Logging(commands.Cog):
     # Posts before & after content of edited messages to the logs channel
     @commands.Cog.listener()
     async def on_message_edit(self, before, after):
-        if not before.guild.id == self.guild_id:
+        if not after.author.guild.id == self.guild_id:
             return
 
         # Ignore bot messages or messages with the same content
