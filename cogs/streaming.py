@@ -19,12 +19,14 @@ class Streaming(commands.Cog):
     # Returns true if the member's activities previously included streaming,
     # but not anymore.
     async def was_streaming(self, before, after):
-        return(await self.streaming(before) and not await self.streaming(after))
+        return (await self.streaming(before)
+                and not await self.streaming(after))
 
     # Returns true if the member's activities now include streaming,
     # but did not previously.
     async def is_now_streaming(self, before, after):
-        return(not await self.streaming(before) and await self.streaming(after))
+        return (not await self.streaming(before)
+                and await self.streaming(after))
 
     # Adds the streaming role to the member if they didn't already have it,
     # takes it away otherwise.
