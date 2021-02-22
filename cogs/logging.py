@@ -24,6 +24,11 @@ class Logging(commands.Cog):
         guild = await self.bot.fetch_guild(self.guild_id)
         self.invites = await guild.invites()
         print("logging: Invite cache updated")
+    
+    # Checks if a message was posted in a guild and matches the guild ID
+    # stored in self.guild_id, returning outcome as boolean
+    async def is_main_guild(self, message):
+        return (message.guild and message.guild.id == self.guild_id)
 
     ### !--- EVENTS ---! ###
     # Updates the invites cache and posts in the
@@ -154,7 +159,7 @@ class Logging(commands.Cog):
     # Posts before & after content of edited messages to the logs channel
     @commands.Cog.listener()
     async def on_message_edit(self, before, after):
-        if not after.author.guild.id == self.guild_id:
+        if not await self.is_main_guild(before):
             return
 
         # Ignore bot messages or messages with the same content
@@ -200,7 +205,7 @@ class Logging(commands.Cog):
     # Posts content of deleted messages to the logs channel
     @commands.Cog.listener()
     async def on_message_delete(self, message):
-        if not message.guild.id == self.guild_id:
+        if not await self.is_main_guild(message):
             return
 
         # Print author & channel name to the terminal
