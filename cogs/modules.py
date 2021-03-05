@@ -84,20 +84,8 @@ class Modules(commands.Cog):
                 print("modules: Error reading modules data from %s.csv\n%s"
                       % (csv_file, e))
 
-        # Read database URL from file
-        postgres_txt = open("postgres.txt", "r")
-        self.DATABASE_URL = postgres_txt.read()
-        postgres_txt.close()
-
-        # Connect to database
-        try:
-            self.database = psycopg2.connect(self.DATABASE_URL,
-                                             sslmode='require')
-            self.database.autocommit = True
-            print("modules: Connected to database")
-
-        except:
-            print("modules: Error connecting to the database!")
+        # Access bot database connection
+        self.database = self.bot.database.connection
         
         # Cache all current user IDs from database
         self.update_player_ids()

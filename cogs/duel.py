@@ -68,18 +68,8 @@ class Duel(commands.Cog):
         self.duels_in_progress = []
         self.duels_enabled = True
 
-        #read db url from file
-        postgres_txt = open("postgres.txt", "r")
-        self.DATABASE_URL = postgres_txt.read()
-        postgres_txt.close()
-
-        #db connection code
-        try:
-            self.database = psycopg2.connect(self.DATABASE_URL, sslmode='require')
-            self.database.autocommit = True
-            print("duel: Connected to database.")
-        except:
-            print("duel: Error connecting to the database!")
+        # Access bot database connection
+        self.database = self.bot.database.connection
 
         #begin loop to keep rankings and settings up to date
         try:
