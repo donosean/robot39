@@ -17,6 +17,12 @@ class Duel(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
+        # Access bot database connection
+        if bot.database:
+            self.database = bot.database.connection
+        else:
+            raise commands.ExtensionFailed
+
         ### !--- CONFIGURABLE ---! ###
         self.guild_id = 253731475751436289
 
@@ -67,9 +73,6 @@ class Duel(commands.Cog):
 
         self.duels_in_progress = []
         self.duels_enabled = True
-
-        # Access bot database connection
-        self.database = self.bot.database.connection
 
         #begin loop to keep rankings and settings up to date
         try:
