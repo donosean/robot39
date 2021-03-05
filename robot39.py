@@ -37,8 +37,8 @@ class Robot39(commands.Bot):
                 print("Cog '%s' is already loaded." % cog)
             except commands.NoEntryPointError:
                 print("Cog '%s' has no setup function." % cog)
-            #except commands.ExtensionFailed:
-            #    print("Cog '%s' had a setup function error." % cog)
+            except commands.ExtensionFailed:
+                print("Cog '%s' had a setup function error." % cog)
 
         # Read token from file
         try:
