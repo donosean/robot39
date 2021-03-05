@@ -1,6 +1,9 @@
 import discord
 from discord.ext import commands
 
+STREAMING_MSG = '%s is now streaming, giving role...'
+NOT_STREAMING_MSG = '%s is no longer streaming, removing role...'
+
 
 class Streaming(commands.Cog):
 
@@ -10,6 +13,9 @@ class Streaming(commands.Cog):
         self.streaming_role = "Streaming Hearts"
 
     ### !--- METHODS ---! ###
+    def log(self, text):
+        print("%s: %s" % (self.qualified_name, text))
+
     # Returns true if any of the member's activities are of type "Streaming".
     async def streaming(self, member):
         streaming = [act for act in member.activities
@@ -34,12 +40,10 @@ class Streaming(commands.Cog):
         stream_role = discord.utils.get(member.guild.roles,
                                         name=self.streaming_role)
         if not stream_role in member.roles:
-            print("streaming: %s is now streaming, giving role..."
-                  % member)
+            self.log(STREAMING_MSG % member)
             await member.add_roles(stream_role)
         else:
-            print("streaming: %s is no longer streaming, removing role..."
-                  % member)
+            self.log(NOT_STREAMING_MSG % member)
             await member.remove_roles(stream_role)
 
     ### !--- EVENTS ---! ###
