@@ -31,6 +31,13 @@ class Modules(commands.Cog):
 
     def __init__(self, bot):
         self.bot = bot
+
+        # Access bot database connection
+        if bot.database:
+            self.database = bot.database.connection
+        else:
+            raise commands.ExtensionFailed
+
         self.modules_dict = {}
         self.active_drops = {}
         self.message_count = {}
@@ -83,9 +90,6 @@ class Modules(commands.Cog):
             except Exception as e:
                 print("modules: Error reading modules data from %s.csv\n%s"
                       % (csv_file, e))
-
-        # Access bot database connection
-        self.database = self.bot.database.connection
         
         # Cache all current user IDs from database
         self.update_player_ids()
