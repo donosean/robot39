@@ -7,6 +7,7 @@ POSTGRES_FILE = 'postgres.txt'
 FILE_MISSING_ERROR = ('Error opening %s for reading, '
                       'please check this file exists.')
 
+
 class Database(commands.Cog):
 
     def __init__(self, bot):
