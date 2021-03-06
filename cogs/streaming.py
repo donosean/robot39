@@ -1,3 +1,4 @@
+import robot39
 import discord
 from discord.ext import commands
 
@@ -5,7 +6,7 @@ STREAMING_MSG = '%s is now streaming, giving role...'
 NOT_STREAMING_MSG = '%s is no longer streaming, removing role...'
 
 
-class Streaming(commands.Cog):
+class Streaming(robot39.Cog):
 
     def __init__(self, bot):
         self.bot = bot
@@ -13,9 +14,6 @@ class Streaming(commands.Cog):
         self.streaming_role = "Streaming Hearts"
 
     ### !--- METHODS ---! ###
-    def log(self, text):
-        print("%s: %s" % (self.qualified_name, text))
-
     # Returns true if any of the member's activities are of type "Streaming".
     async def streaming(self, member):
         streaming = [act for act in member.activities

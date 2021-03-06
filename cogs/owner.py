@@ -1,3 +1,4 @@
+import robot39
 import discord
 from discord.ext import commands
 
@@ -11,22 +12,12 @@ class CogAction(Enum):
     unload = 'unload'
 
 
-class Owner(commands.Cog):
+class Owner(robot39.Cog):
 
     def __init__(self, bot):
         self.bot = bot
 
     ### !--- METHODS ---! ###
-    # Sends the same text to the terminal and context channel/DM
-    async def say(self, ctx, text: str):
-        try:
-            await ctx.reply(text)
-
-        except discord.Forbidden:
-            print("owner: Missing permissions to reply.")
-
-        print("owner: %s" % text)
-
     # Reloads/loads/unloads a cog depending on given CogAction
     async def manage_cog(self, ctx, cog: str, action: CogAction):
         try:
@@ -97,7 +88,8 @@ class Owner(commands.Cog):
             return True
         else:
             raise commands.NotOwner(
-                'owner: %s does not own this bot.' % ctx.author)
+                '%s: %s does not own this bot.' % (self.qualified_name,
+                                                   ctx.author))
 
     # Reloads a cog that is already loaded
     @commands.command(name="reload_cog", aliases=["reload"])

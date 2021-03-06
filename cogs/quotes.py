@@ -1,7 +1,7 @@
+import robot39
 import discord
 from discord.ext import commands
 
-MISSING_PERMISSION_REPLY = 'Missing permissions to reply.'
 MISSING_PERMISSION_FETCH = 'Missing permissions to fetch message.'
 MISSING_PERMISSION_POST = "Missing permissions to post quote."
 MSG_NOT_FOUND = 'Message not found.'
@@ -11,26 +11,12 @@ QUOTE_ADDED = 'Added a quote by %s.'
 QUOTE_POST_FAILED = "Posting the quote failed."
 
 
-class Quotes(commands.Cog):
+class Quotes(robot39.Cog):
 
     def __init__(self, bot):
         self.bot = bot
         self.staff_roles = ["Secret Police"]
         self.quotes_channel_id = 797182745050087455
-
-    ### !--- METHODS ---! ###
-    def log(self, text):
-        print("%s: %s" % (self.qualified_name, text))
-
-    # Sends the same text to the terminal and context channel
-    async def say(self, ctx, text: str):
-        try:
-            await ctx.reply(text)
-
-        except discord.Forbidden:
-            self.log(MISSING_PERMISSION_REPLY)
-        
-        self.log(text)
 
     ### !--- CHECKS & COMMANDS ---! ###
     # Restricts all commands in this cog to specific checks

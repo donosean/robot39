@@ -1,8 +1,9 @@
+import robot39
 import discord
 from discord.ext import commands
 
 
-class NoMimic(commands.Cog):
+class NoMimic(robot39.Cog):
 
     def __init__(self, bot):
         self.bot = bot
@@ -21,15 +22,13 @@ class NoMimic(commands.Cog):
             try:
                 member = after.guild.get_member(after.id)
                 await member.edit(nick=None)
-                print("nomimic: Caught matching nickname,"
-                      "cleared for user %s" % member)
+                self.log("Cleared matching nickname for user %s" % member)
             
             except discord.Forbidden:
-                print("nomimic: Missing permissions to clear nickname for %s"
-                      % after)
+                self.log("Missing permissions to clear nickname for %s" % after)
             
             except discord.HTTPException:
-                print("nomimic: Nickname clear operation failed for %s" % after)
+                self.log("Nickname clear operation failed for %s" % after)
 
 
 def setup(bot):

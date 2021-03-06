@@ -1,3 +1,4 @@
+import robot39
 import discord
 from discord.ext import commands, tasks
 
@@ -11,7 +12,7 @@ import psycopg2
 import random
 import secrets
 
-class Duel(commands.Cog):
+class Duel(robot39.Cog):
 
     ### !--- INIT ---! ###
     def __init__(self, bot):
@@ -77,9 +78,9 @@ class Duel(commands.Cog):
         #begin loop to keep rankings and settings up to date
         try:
             self.duel_loop.start()
-            print("duel: Rankings/settings updates enabled.")
+            self.log("Rankings/settings updates enabled.")
         except:
-            print("duel: Error enabling rankings/settings updates.")
+            self.log("Error enabling rankings/settings updates.")
         
         #read song info from csv
         try:
@@ -87,9 +88,9 @@ class Duel(commands.Cog):
                 reader = csv.DictReader(songs_file)
                 for row in reader:
                     self.songs.append(row)
-            print("duel: Info loaded for %s song(s)." % len(self.songs))
+            self.log("Info loaded for %s song(s)." % len(self.songs))
         except:
-            print("duel: Error reading song data from song_data.csv.")
+            self.log("Error reading song data from song_data.csv.")
         
         #read dictionary of DLC packs + emoji equivalents to dict
         try:
@@ -97,9 +98,9 @@ class Duel(commands.Cog):
             dlc_dict_content = dlc_dict_txt.read()
             self.dlc_dict = ast.literal_eval(dlc_dict_content)
             dlc_dict_txt.close()
-            print("duel: DLC dictionary read from dlc_dict.txt.")
+            self.log("DLC dictionary read from dlc_dict.txt.")
         except:
-            print("duel: Error reading DLC dictionary from dlc_dict.txt.")
+            self.log("Error reading DLC dictionary from dlc_dict.txt.")
 
     def cog_unload(self):
         self.duel_loop.cancel()
@@ -131,7 +132,7 @@ class Duel(commands.Cog):
                 player = user
                 uid = user.id
             else:
-                print("duel: %s is not allowed to do that." % ctx.author)
+                self.log("%s is not allowed to do that." % ctx.author)
                 return
         else:
             player = ctx.author
@@ -145,7 +146,7 @@ class Duel(commands.Cog):
             await ctx.send("You've been registered for duels, %s! Please set your owned song packs in the duel DLC channel." % player.mention)
 
         except psycopg2.Error as e:
-            print("duel: Error registering user %s:\n%s" % (player, e))
+            self.log("Error registering user %s:\n%s" % (player, e))
             await ctx.send("There was an error registering that user, %s. Are they already registered? If not please PM an admin." % ctx.message.author.mention)
 
         finally:
@@ -276,12 +277,12 @@ class Duel(commands.Cog):
         if (len(shared_songs_list) == 0) or (type(shared_songs_list) == None):
             await ctx.send("It seems neither of you have any songs in common to duel with! Please check your settings in the duel DLC channel.")
             self.duels_in_progress.remove(ctx.channel.id)
-            print("duel: Error, no songs in common between %s and %s." % (player1, player2))
+            self.log("Error, no songs in common between %s and %s." % (player1, player2))
             return
 
         random_song = secrets.choice(shared_songs_list)
         await ctx.send("Rolled a random song that %s and %s have in common...\nYour random song roll is: **%s**" % (player1, player2, random_song))
-        print("duel: Rolled random song for %s and %s" % (player1, player2))
+        self.log("Rolled random song for %s and %s" % (player1, player2))
     
     @commands.command()
     async def exex(self, ctx):
@@ -334,7 +335,7 @@ class Duel(commands.Cog):
             return
 
         challenge_id = await self.issue_challenge(ctx, player1, player2, duel_type)
-        print("duel: %s issued a %s challenge to %s" % (player1, duel_type.lower(), player2))
+        self.log("%s issued a %s challenge to %s" % (player1, duel_type.lower(), player2))
 
         if not await self.confirm_duel(ctx, player1, player2, challenge_id):
             #duel timed out or declined
@@ -346,10 +347,10 @@ class Duel(commands.Cog):
         if (len(shared_songs_list) == 0) or (type(shared_songs_list) == None):
             await ctx.send("It seems neither of you have any songs in common to duel with! Please check your settings in the duel DLC channel.")
             self.duels_in_progress.remove(ctx.channel.id)
-            print("duel: Error, no songs in common between %s and %s." % (player1, player2))
+            self.log("Error, no songs in common between %s and %s." % (player1, player2))
             return
 
-        print("duel: %s accepted the challenge from %s" % (player2, player1))
+        self.log("%s accepted the challenge from %s" % (player2, player1))
         await ctx.send("**Beginning Duel:** %s vs %s\n"\
             % (player1.mention, player2.mention)\
             + "First to %s point(s) wins. Priority is Perfects > Percentage > Score."\
@@ -444,7 +445,7 @@ class Duel(commands.Cog):
             await ctx.send("User unregistered.")
 
         except psycopg2.Error as e:
-            print("duel: Error unregistering user %s:\n%s" % (user, e))
+            self.log("Error unregistering user %s:\n%s" % (user, e))
 
         finally:
             cursor.close()
@@ -466,7 +467,7 @@ class Duel(commands.Cog):
             duel = cursor.fetchone()
 
         except psycopg2.OperationalError as e:
-            print("duel: Error fetching duel from database:\n%s" % e)
+            self.log("Error fetching duel from database:\n%s" % e)
             duel = None
 
         finally:
@@ -514,7 +515,7 @@ class Duel(commands.Cog):
                     await ctx.send("Duel channel added.")
 
                 except psycopg2.OperationalError as e:
-                    print("duel: Error adding duel channel:\n%s" % e)
+                    self.log("Error adding duel channel:\n%s" % e)
 
                 finally:
                     cursor.close()
@@ -539,7 +540,7 @@ class Duel(commands.Cog):
                 await ctx.send("Duel channel removed.")
 
             except psycopg2.OperationalError as e:
-                print("duel: Error removing duel channel:\n%s" % e)
+                self.log("Error removing duel channel:\n%s" % e)
 
             finally:
                 cursor.close()
@@ -562,7 +563,7 @@ class Duel(commands.Cog):
             else 2
 
         await self.process_duel_results(ctx, winner, loser, max_points)
-        print("duel: Victory forced in favor of %s vs %s." % (winner, loser))
+        self.log("Victory forced in favor of %s vs %s." % (winner, loser))
 
     """
     @commands.command()
@@ -591,7 +592,7 @@ class Duel(commands.Cog):
             channel =  self.bot.get_channel(self.dlc_channel)
             message = await channel.fetch_message(payload.message_id)
             await message.remove_reaction(payload.emoji, member)
-            print("duel: %s is not registered, DLC reaction removed." % member)
+            self.log("%s is not registered, DLC reaction removed." % member)
             return
 
         emoji = str(payload.emoji)

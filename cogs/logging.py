@@ -1,10 +1,11 @@
+import robot39
 import discord
 from discord.ext import commands, tasks
 
 from itertools import product
 
 
-class Logging(commands.Cog):
+class Logging(robot39.Cog):
 
     def __init__(self, bot):
         self.bot = bot
@@ -23,7 +24,7 @@ class Logging(commands.Cog):
     async def update_invites_cache(self):
         guild = await self.bot.fetch_guild(self.guild_id)
         self.invites = await guild.invites()
-        print("logging: Invite cache updated")
+        self.log("Invite cache updated")
     
     # Checks if a message was posted in a guild and matches the guild ID
     # stored in self.guild_id, returning outcome as boolean
@@ -40,8 +41,7 @@ class Logging(commands.Cog):
 
         # Update invites cache and post event to the terminal
         await self.update_invites_cache()
-        print("logging: Invite code %s created by %s"
-            % (invite.code, invite.inviter))
+        self.log("Invite code %s created by %s" % (invite.code, invite.inviter))
 
         # Create embed to post in logs channel
         embed=discord.Embed(title="Invite Created", color=0x80ffff)
@@ -60,7 +60,7 @@ class Logging(commands.Cog):
             return
 
         await self.update_invites_cache()
-        print("logging: Invite code %s deleted" % invite.code)
+        self.log("Invite code %s deleted" % invite.code)
 
     # Posts in the logs channel when a member is banned from the guild
     @commands.Cog.listener()
@@ -82,7 +82,7 @@ class Logging(commands.Cog):
         moderator = ban_entry.user.mention if ban_entry else "Unknown"
 
         # Print event to the terminal
-        print("logging: Member %s was banned by %s" % (member, moderator)) 
+        self.log("Member %s was banned by %s" % (member, moderator)) 
 
         # Create embed to post in logs channel
         embed=discord.Embed(title="Member Banned", color=0x80ffff)
@@ -121,8 +121,7 @@ class Logging(commands.Cog):
         invite_code = invite_used.code if invite_used else "Unknown"
 
         # Print event to the terminal
-        print("logging: Member %s joined via invite from %s" 
-              % (member, inviter))
+        self.log("Member %s joined via invite from %s" % (member, inviter))
 
         # Create embed to post in logs channel
         embed=discord.Embed(title="Member Joined", color=0x80ffff)
@@ -145,7 +144,7 @@ class Logging(commands.Cog):
             return
 
         # Print event to the terminal
-        print("logging: Member %s left the server" % member)
+        self.log("Member %s left the server" % member)
 
         # Create embed to post in the logs channel
         embed=discord.Embed(title="Member Left", color=0x80ffff)
@@ -167,8 +166,8 @@ class Logging(commands.Cog):
             return
 
         # Print author & channel name to the terminal
-        print("logging: Message edited by %s in %s"
-              % (before.author, before.channel.name))
+        self.log("Message edited by %s in %s"
+                 % (before.author, before.channel.name))
 
         # Check for empty message content in before/after message
         msg_content_before = before.content if len(before.content) > 0\
@@ -209,8 +208,8 @@ class Logging(commands.Cog):
             return
 
         # Print author & channel name to the terminal
-        print("logging: Message from %s was deleted in %s"
-              % (message.author, message.channel))
+        self.log("Message from %s was deleted in %s"
+                 % (message.author, message.channel))
 
         # Don't repost messages deleted from the logs channel
         if message.channel.id == self.logs_channel_id:

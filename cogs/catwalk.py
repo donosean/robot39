@@ -1,10 +1,11 @@
+import robot39
 import discord
 from discord.ext import commands, tasks
 
 from datetime import datetime
 
 
-class Catwalk(commands.Cog):
+class Catwalk(robot39.Cog):
 
     def __init__(self, bot):
         self.bot = bot
@@ -33,16 +34,16 @@ class Catwalk(commands.Cog):
         if not self.last_reminder_msg == None:
             try:
                 await self.last_reminder_msg.delete()
-                print("catwalk: Deleted previous reminder message")
+                self.log("Deleted previous reminder message")
 
             except discord.Forbidden:
-                print("catwalk: Missing permissions to delete reminder message")
+                self.log("Missing permissions to delete reminder message")
 
             except discord.NotFound:
-                print("catwalk: Message not found, possibly already deleted")
+                self.log("Message not found, possibly already deleted")
         
             except discord.HTTPException:
-                print("catwalk: Deleting the message failed")
+                self.log("Deleting the message failed")
 
     ### !--- TASKS ---! ###
     # Compares the current time against the hours set in __init__ and sends
@@ -56,13 +57,13 @@ class Catwalk(commands.Cog):
 
         # Only run on the same day as the catwalk event or the day before
         if not any([time.weekday(), time.weekday()+1]) in self.catwalk_weekdays:
-            print("catwalk: Reminder check at: %s" % time)
+            self.log("Reminder check at: %s" % time)
             return
 
         # Get catwalk event channel and check it exists
         catwalk_channel = self.bot.get_channel(self.catwalk_channel_id)
         if not catwalk_channel:
-            print("catwalk: Channel not found, please check channel ID")
+            self.log("Channel not found, please check channel ID")
             return
 
         # Get role to ping with each reminder
@@ -78,7 +79,7 @@ class Catwalk(commands.Cog):
                     await catwalk_channel.send(
                         "%s! The current Catwalk will end in 24 hour(s), at"
                         " 10:00a.m. EST." % ping_role.mention)
-                print("catwalk: Reminder sent at: %s" % time)
+                self.log("Reminder sent at: %s" % time)
 
             # Send message and ping for catwalk event ending
             elif time.hour == self.catwalk_hour:
@@ -87,7 +88,7 @@ class Catwalk(commands.Cog):
                 await catwalk_channel.send(
                         "%s! The current Catwalk has ended!"
                         % ping_role.mention)
-                print("catwalk: Catwalk finished at: %s" % time)
+                self.log("Catwalk finished at: %s" % time)
             
             # Send message and ping for catwalk event ending soon
             elif time.hour in self.reminder_hours:
@@ -98,13 +99,13 @@ class Catwalk(commands.Cog):
                         " 10:00a.m. EST."
                         % (ping_role.mention,
                             (self.catwalk_hour - time.hour)))
-                print("catwalk: Reminder sent at: %s" % time)
+                self.log("Reminder sent at: %s" % time)
         
         except discord.Forbidden:
-            print("catwalk: Missing permissions to send reminder message")
+            self.log("Missing permissions to send reminder message")
 
         except discord.HTTPException:
-            print("catwalk: Sending the reminder message failed")
+            self.log("Sending the reminder message failed")
             
     @catwalk_loop.before_loop
     async def before_catwalk_loop(self):
@@ -118,7 +119,7 @@ class Catwalk(commands.Cog):
         # Get catwalk event channel and check it exists
         catwalk_channel = self.bot.get_channel(self.catwalk_channel_id)
         if not catwalk_channel:
-            print("catwalk: Channel not found, please check channel ID")
+            self.log("Channel not found, please check channel ID")
             return
         
         # Get most recent message in catwalk channel's message history
@@ -126,12 +127,12 @@ class Catwalk(commands.Cog):
         async for message in catwalk_channel.history(limit=1):
             if message.author == self.bot.user:
                 self.last_reminder_msg = message
-                print("catwalk: Reminder message found -- %s"
-                      % self.last_reminder_msg.id)
+                self.log("Reminder message found -- %s"
+                         % self.last_reminder_msg.id)
 
         # Print to terminal if no message was found that met the conditions
         if self.last_reminder_msg == None:
-            print("catwalk: No previous reminder message found.")
+            self.log("No previous reminder message found.")
         
         # Prevent the loop from running again
         self.last_reminder_finder.stop()

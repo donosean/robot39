@@ -1,3 +1,4 @@
+import robot39
 import discord
 from discord.ext import commands
 
@@ -8,7 +9,7 @@ FILE_MISSING_ERROR = ('Error opening %s for reading, '
                       'please check this file exists.')
 
 
-class Database(commands.Cog):
+class Database(robot39.Cog):
 
     def __init__(self, bot):
         self.bot = bot
@@ -35,9 +36,6 @@ class Database(commands.Cog):
         except psycopg2.Error:
             self.log("Error connecting to the database!")
             raise commands.ExtensionFailed
-    
-    def log(self, text):
-        print("%s: %s" % (self.qualified_name, text))
 
 
 def setup(bot):

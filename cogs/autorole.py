@@ -1,3 +1,4 @@
+import robot39
 import discord
 from discord.ext import commands
 
@@ -5,7 +6,7 @@ import json
 from typing import Union
 
 
-class AutoRole(commands.Cog):
+class AutoRole(robot39.Cog):
 
     def __init__(self, bot):
         self.bot = bot
@@ -29,24 +30,23 @@ class AutoRole(commands.Cog):
 
                 # Cog will not load if it can't be decoded
                 except json.JSONDecodeError:
-                    print("autorole: Error decoding contents of %s, "
-                          "cannot load cog" % self.settings_file[5:])
+                    self.log("Error decoding contents of %s, cannot load cog"
+                             % self.settings_file[5:])
                     raise commands.ExtensionFailed
 
-            print("autorole: Loaded settings for %s server(s)"
-                  % len(self.settings))
+            self.log("Loaded settings for %s server(s)" % len(self.settings))
 
         except OSError:
             # Create settings file if it's missing
-            print("autorole: Error opening %s for reading, "
-                  "this file will be created" % self.settings_file[5:])
+            self.log("Error opening %s for reading, this file will be created"
+                     % self.settings_file[5:])
             try:
                 settings_json = open(self.settings_file, "w")
 
             # Cog will not load if it can't find/create settings file
             except OSError:
-                print("autorole: Error creating %s, cannot load cog"
-                      % self.settings_file[5:])
+                self.log("Error creating %s, cannot load cog"
+                         % self.settings_file[5:])
                 raise commands.ExtensionFailed
 
         settings_json.close()
@@ -59,8 +59,7 @@ class AutoRole(commands.Cog):
 
         # Return False if file can't be opened or created
         except OSError:
-            print("autorole: Error saving settings to %s!"
-                  % self.settings_file[5:])
+            self.log("Error saving settings to %s!" % self.settings_file[5:])
             return False
 
         # Encode the settings to JSON format and save the file
@@ -83,15 +82,6 @@ class AutoRole(commands.Cog):
 
         return role
 
-    # Sends the same text to both the context channel and the terminal
-    async def say(self, ctx, text):
-        try:
-            await ctx.reply(text)
-        except discord.Forbidden:
-            print("autorole: Missing permissions to reply")
-
-        print("autorole: %s" % text)
-
     ### !--- EVENTS ---! ###
     # Adds the configured role to new members
     # on a per guild basis if one is set
@@ -105,15 +95,14 @@ class AutoRole(commands.Cog):
         # Add the role to the new member
         try:
             await member.add_roles(role)
-            print("autorole: Role '%s' added to %s" % (role.name, member))
+            self.log("Role '%s' added to %s" % (role.name, member))
 
         except discord.Forbidden:
-            print("autorole: Missing permissions to add role '%s' to %s"
-                  % (role.name, member))
+            self.log("Missing permissions to add role '%s' to %s"
+                     % (role.name, member))
 
         except discord.HTTPException:
-            print("autorole: Failed to add role '%s' to %s"
-                  % (role.name, member))
+            self.log("Failed to add role '%s' to %s" % (role.name, member))
 
     ### !--- CHECKS & COMMANDS ---! ###
     # Restricts all commands in this cog to specific checks
@@ -124,7 +113,7 @@ class AutoRole(commands.Cog):
             return True
 
         raise commands.NotOwner(
-            'autorole: %s does not own this bot.' % ctx.author)
+            '%s: %s does not own this bot.' % (self.qualified_name, ctx.author))
 
     # Displays the role currently set for the server, if one is configured
     @commands.command()

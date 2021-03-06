@@ -1,3 +1,4 @@
+import robot39
 import discord
 from discord.ext import commands
 
@@ -27,7 +28,7 @@ class DatabaseAction(Enum):
         self.SQL = SQL
 
 
-class Modules(commands.Cog):
+class Modules(robot39.Cog):
 
     def __init__(self, bot):
         self.bot = bot
@@ -84,12 +85,12 @@ class Modules(commands.Cog):
                         self.modules_dict[csv_file].append(row)
 
                 # Print how many entries are loaded from each CSV file
-                print("modules: Info loaded from %s.csv for %s module(s)"
-                      % (csv_file, len(self.modules_dict[csv_file])))
+                self.log("Info loaded from %s.csv for %s module(s)"
+                         % (csv_file, len(self.modules_dict[csv_file])))
 
             except Exception as e:
-                print("modules: Error reading modules data from %s.csv\n%s"
-                      % (csv_file, e))
+                self.log("Error reading modules data from %s.csv\n%s"
+                         % (csv_file, e))
         
         # Cache all current user IDs from database
         self.update_player_ids()
@@ -110,8 +111,7 @@ class Modules(commands.Cog):
             self.player_ids = player_ids
 
         except psycopg2.Error as e:
-                print("module: Error fetching member IDs from database:\n%s"
-                      % e)
+                self.log("Error fetching member IDs from database:\n%s" % e)
 
         finally:
             cursor.close()
@@ -184,8 +184,8 @@ class Modules(commands.Cog):
                 return cursor.fetchone()
 
         except psycopg2.Error as e:
-                print("module: Error executing database action '%s':\n%s"
-                      % (action, e))
+                self.log("Error executing database action '%s':\n%s"
+                         % (action, e))
 
         finally:
             cursor.close()
@@ -249,7 +249,7 @@ class Modules(commands.Cog):
         await self.manage_player_collection(uid, module_id, action="add_module")
 
         user = self.bot.get_user(uid)
-        print("modules: Added %s to %s" % (module_id, user))
+        self.log("Added %s to %s" % (module_id, user))
 
     # Removes a module (module_id) from a player (uid)
     async def remove_module_from_player(self, uid: int, module_id: str):
@@ -257,21 +257,21 @@ class Modules(commands.Cog):
                                             action="remove_module")
 
         user = self.bot.get_user(uid)
-        print("modules: Removed %s from %s" % (module_id, user))
+        self.log("Removed %s from %s" % (module_id, user))
     
     # Adds VP amount to player's current total
     async def add_vp_to_player(self, uid: int, amount: int):
         await self.database_action(DatabaseAction.add_vp, uid, amount)
 
         user = self.bot.get_user(uid)
-        print("modules: Added %s VP to %s" % (amount, user))
+        self.log("Added %s VP to %s" % (amount, user))
 
     # Removes VP amount from player's current total
     async def remove_vp_from_player(self, uid: int, amount: int):
         await self.database_action(DatabaseAction.remove_vp, uid, amount)
 
         user = self.bot.get_user(uid)
-        print("modules: Removed %s VP from %s" % (amount, user))
+        self.log("Removed %s VP from %s" % (amount, user))
 
     # Rolls a random valid module_id
     async def roll_module_id(self, module_set: str = None) -> str:
@@ -304,7 +304,7 @@ class Modules(commands.Cog):
             bg_image = Image.open(card_back)
 
         except FileNotFoundError:
-            print("modules: Image file(s) not found for module %s" % module)
+            self.log("Image file(s) not found for module %s" % module)
             return
 
         bg_image.paste(top_image,(0, 0), top_image)
@@ -511,7 +511,7 @@ class Modules(commands.Cog):
         module = await self.fetch_module_info(module_id)
         module_name = module["ENG Name"]
         await ctx.reply("Redeemed %s! You gained 100 VP." % module_name)
-        print("modules: %s redeemed by %s" % (module_id, ctx.author))
+        self.log("%s redeemed by %s" % (module_id, ctx.author))
 
     # Gives module (module_id) to mentioned player if module is owned by author
     @commands.command()
@@ -558,11 +558,10 @@ class Modules(commands.Cog):
         # Send reply
         module = await self.fetch_module_info(module_id)
         module_name = module["ENG Name"]
-        await ctx.reply(
-            "You gave %s -- %s to %s."
-            % (module_id, module_name, receiving_user.mention))
-        print("modules: %s given to %s by %s"
-              % (module_id, ctx.author, receiving_user))
+        await ctx.reply("You gave %s -- %s to %s."
+                        % (module_id, module_name, receiving_user.mention))
+        self.log("%s given to %s by %s"
+                 % (module_id, ctx.author, receiving_user))
 
     # Gives VP (amount) to mentioned player if author has enough
     @commands.command()
@@ -603,11 +602,10 @@ class Modules(commands.Cog):
         # Swap the VP between players and reply
         await self.remove_vp_from_player(ctx.author.id, amount)
         await self.add_vp_to_player(receiving_user.id, amount)
-        await ctx.reply(
-            "You gave %s VP to %s." % (amount, receiving_user.mention))
-        print(
-            "modules: %s VP given to %s by %s"
-            % (amount, receiving_user, ctx.author))
+        await ctx.reply("You gave %s VP to %s."
+                        % (amount, receiving_user.mention))
+        self.log("%s VP given to %s by %s"
+                 % (amount, receiving_user, ctx.author))
 
     # Gives a random module and 500 VP to the author, usable once per day
     @commands.command()
@@ -639,7 +637,7 @@ class Modules(commands.Cog):
         # Mark the daily as redeemed and reply to author
         await self.mark_daily_as_redeemed(ctx.author.id, today)
         await ctx.send(file=file, embed=embed)
-        print("modules: Daily redeemed by %s" % ctx.author)
+        self.log("Daily redeemed by %s" % ctx.author)
 
     # Player can buy a random module for 1000 VP or specify a set for 1500 VP
     @commands.command(name='purchase', aliases=['buy'])
@@ -676,7 +674,7 @@ class Modules(commands.Cog):
         embed = await self.fill_module_embed(module_id, embed)
         embed.add_field(name="** **", value="You spent %s VP." % vp_cost)
         await ctx.send(file=file, embed=embed)
-        print("modules: %s rolled a module" % ctx.author)
+        self.log("%s rolled a module" % ctx.author)
 
     # Displays player collection stats including VP and completion percentage
     @commands.command()
@@ -790,7 +788,7 @@ class Modules(commands.Cog):
                 # and drop the module
                 await asyncio.sleep(1)
                 await drop_channel.send(file=file, embed=embed)
-                print("modules: Dropped %s in %s" % (module_id, drop_channel))
+                self.log("Dropped %s in %s" % (module_id, drop_channel))
 
 
 def setup(bot):
