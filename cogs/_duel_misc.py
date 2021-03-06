@@ -17,7 +17,8 @@ async def fetch_settings(self, guild_id):
 
     finally:
         cursor.close()
-        return duel_settings
+    
+    return duel_settings
 
 async def fetch_players(self, uid=None):
     SQL = "SELECT * FROM players"
