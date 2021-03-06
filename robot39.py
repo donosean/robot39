@@ -61,4 +61,23 @@ class Robot39(commands.Bot):
         return self.get_cog('Database')
 
 
-Robot39()
+class Cog(commands.Cog):
+
+    def __init__(self, bot):
+        super().__init__()
+
+    def log(self, text):
+        print("%s: %s" % (self.qualified_name, text))
+
+    async def say(self, ctx, text: str):
+        try:
+            await ctx.reply(text)
+
+        except discord.Forbidden:
+            self.log('Missing permissions to reply.')
+        
+        self.log(text)
+
+
+if __name__ == '__main__':
+    Robot39()
