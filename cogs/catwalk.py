@@ -55,9 +55,9 @@ class Catwalk(robot39.Cog):
             return
 
         # Only run on the same day as the catwalk event or the day before
-        if not any([time.weekday(), time.weekday()+1]) in self.catwalk_weekdays:
-            self.log("Reminder check at: %s" % time)
-            return
+        if not (time.weekday() in self.catwalk_weekdays
+            or time.weekday()+1 in self.catwalk_weekdays):
+                return
 
         # Get catwalk event channel and check it exists
         catwalk_channel = self.bot.get_channel(self.catwalk_channel_id)
