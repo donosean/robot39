@@ -2,9 +2,6 @@ import robot39
 import discord
 from discord.ext import commands
 
-STREAMING_MSG = '%s is now streaming, giving role...'
-NOT_STREAMING_MSG = '%s is no longer streaming, removing role...'
-
 
 class Streaming(robot39.Cog):
 
@@ -38,10 +35,10 @@ class Streaming(robot39.Cog):
         stream_role = discord.utils.get(member.guild.roles,
                                         name=self.streaming_role)
         if not stream_role in member.roles:
-            self.log(STREAMING_MSG % member)
+            self.log('%s is now streaming, giving role...' % member)
             await member.add_roles(stream_role)
         else:
-            self.log(NOT_STREAMING_MSG % member)
+            self.log('%s is no longer streaming, removing role...' % member)
             await member.remove_roles(stream_role)
 
     ### !--- EVENTS ---! ###
