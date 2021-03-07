@@ -1,3 +1,4 @@
+database
 autorole
 catwalk
 duel
@@ -7,3 +8,4 @@ modules
 nomimic
 owner
 quotes
+streaming
