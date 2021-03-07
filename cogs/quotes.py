@@ -2,20 +2,12 @@ import robot39
 import discord
 from discord.ext import commands
 
-MISSING_PERMISSION_FETCH = 'Missing permissions to fetch message.'
-MISSING_PERMISSION_POST = "Missing permissions to post quote."
-MSG_NOT_FOUND = 'Message not found.'
-MSG_FETCH_FAILED = 'Retrieving the message failed.'
-MSG_NO_CONTENT = 'Message contains no quotable text content.'
-QUOTE_ADDED = 'Added a quote by %s.'
-QUOTE_POST_FAILED = "Posting the quote failed."
-
 
 class Quotes(robot39.Cog):
 
     def __init__(self, bot):
         self.bot = bot
-        self.staff_roles = ["Secret Police"]
+        self.staff_roles = ['Secret Police']
         self.quotes_channel_id = 797182745050087455
 
     ### !--- CHECKS & COMMANDS ---! ###
@@ -35,7 +27,7 @@ class Quotes(robot39.Cog):
     
     # Posts an embed to the quotes channel, containing a quoted message 
     # obtained from a channel mention and a message ID
-    @commands.command(name="add_quote", aliases=["quote"])
+    @commands.command(name='add_quote', aliases=['quote'])
     @commands.guild_only()
     async def add_quote(self, ctx, channel_mention: discord.TextChannel,
                         message_id):
@@ -43,27 +35,27 @@ class Quotes(robot39.Cog):
         try:
             message = await channel_mention.fetch_message(message_id)
         except discord.Forbidden:
-            await self.say(ctx, MISSING_PERMISSION_FETCH)
+            await self.say(ctx, 'Missing permissions to fetch message.')
             return
         except discord.NotFound:
-            await self.say(ctx, MSG_NOT_FOUND)
+            await self.say(ctx, 'Message not found.')
             return
         except discord.HTTPException:
-            await self.say(ctx, MSG_FETCH_FAILED)
+            await self.say(ctx, 'Retrieving the message failed.')
             return
 
         # Check if message contains actual text content
         if len(message.content) == 0:
-            await self.say(ctx, MSG_NO_CONTENT)
+            await self.say(ctx, 'Message contains no quotable text content.')
             return
 
-        # Date of message creation, formatted like "1 January 2021"
-        msg_date = message.created_at.strftime("%d %B %Y")
+        # Date of message creation, formatted like '1 January 2021'
+        msg_date = message.created_at.strftime('%d %B %Y')
 
         # Create embed to post in quotes channel
-        embed=discord.Embed(title="Quote", color=0x80ffff)
+        embed=discord.Embed(title='Quote', color=0x80ffff)
         embed.set_thumbnail(url=message.author.avatar_url)
-        embed.add_field(name=message.content, value="-- %s, [%s](%s)"
+        embed.add_field(name=message.content, value='-- %s, [%s](%s)'
                         % (message.author.mention, msg_date, message.jump_url),
                         inline=False)
 
@@ -71,12 +63,12 @@ class Quotes(robot39.Cog):
         try:
             quotes_channel = self.bot.get_channel(self.quotes_channel_id)
             await quotes_channel.send(embed=embed)
-            await self.say(ctx, QUOTE_ADDED % message.author)
+            await self.say(ctx, 'Added a quote by %s.' % message.author)
 
         except discord.Forbidden:
-            await self.say(ctx, MISSING_PERMISSION_POST)
+            await self.say(ctx, 'Missing permissions to post quote.')
         except discord.HTTPException:
-            await self.say(ctx, QUOTE_POST_FAILED)
+            await self.say(ctx, 'Posting the quote failed.')
 
 
 def setup(bot):
