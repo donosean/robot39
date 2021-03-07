@@ -1,6 +1,7 @@
 import asyncio
 import secrets
 
+
 async def can_duel(self, ctx, player1, player2):
     #check if new duels are enabled
     if not self.duels_enabled:
@@ -50,6 +51,7 @@ async def can_duel(self, ctx, player1, player2):
     else:
         return True
 
+
 async def get_shared_songs(self, player1, player2):
     async def get_player_songs(player_dlc):
         songs = []
@@ -79,12 +81,14 @@ async def get_shared_songs(self, player1, player2):
     print("duel: Generated list of %s shared song(s) between %s and %s." % (len(shared_songs), player1, player2))
     return shared_songs
 
+
 async def get_max_points(self, ctx, duel_type):
     duel_type = duel_type.lower()
     return\
         2 if duel_type == "bo3" else\
         3 if duel_type == "bo5" else\
         5 if duel_type == "bo9" else False
+
 
 async def issue_challenge(self, ctx, player1, player2, duel_type):
     #emoji for reacts
@@ -102,6 +106,7 @@ async def issue_challenge(self, ctx, player1, player2, duel_type):
 
     #return message id to be used in checks
     return challenge_message.id
+
 
 async def confirm_duel(self, ctx, player1, player2, challenge_id):
     #emoji for reacts
@@ -151,6 +156,7 @@ async def confirm_duel(self, ctx, player1, player2, challenge_id):
         #remove bot reactions
         await challenge_message.remove_reaction(yes, self.bot.user)
         await challenge_message.remove_reaction(no, self.bot.user)
+
 
 async def begin_round(self, ctx, player1, player2, duel_round, shared_songs_list):
     #emoji for reacts
@@ -215,6 +221,7 @@ async def begin_round(self, ctx, player1, player2, duel_round, shared_songs_list
         #remove bot reacts
         await duel_message.remove_reaction(yes, self.bot.user)
 
+
 async def song_countdown(self, ctx):
     countdown = 5
     countdown_message = await ctx.send("Song confirmed, get ready to begin!\nStart in")
@@ -225,6 +232,7 @@ async def song_countdown(self, ctx):
         await asyncio.sleep(1)
 
     await countdown_message.edit(content=(countdown_message.content + " **Go!**"))
+
 
 async def confirm_scores(self, ctx, player1, player2):
     #emoji for reacts
@@ -281,6 +289,7 @@ async def confirm_scores(self, ctx, player1, player2):
         #remove bot reactions
         await finished_message.remove_reaction(yes, self.bot.user)
 
+
 async def get_winner(self, ctx, player1, player2):
     #emoji for reacts
     yes = self.bot.get_emoji(self.yes_emoji)   
@@ -317,6 +326,7 @@ async def get_winner(self, ctx, player1, player2):
     finally:
         #remove bot reactions
         await win_message.remove_reaction(yes, self.bot.user)
+
 
 async def confirm_winner(self, ctx, winner, loser):
     #emoji for reacts
@@ -355,6 +365,7 @@ async def confirm_winner(self, ctx, winner, loser):
         #remove bot reactions
         await confirm_message.remove_reaction(no, self.bot.user)
         await confirm_message.remove_reaction(yes, self.bot.user)
+
 
 async def process_duel_results(self, ctx, winner, loser, duel_max_points=2):
     #fetch player info

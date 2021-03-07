@@ -1,10 +1,6 @@
 import robot39
 import discord
 from discord.ext import commands, tasks
-
-import cogs._duel_misc as _duel_misc
-import cogs._duel_challenge as _duel_challenge
-
 import asyncio
 import ast
 import csv
@@ -12,9 +8,12 @@ import psycopg2
 import random
 import secrets
 
+import cogs._duel_misc as _duel_misc
+import cogs._duel_challenge as _duel_challenge
+
+
 class Duel(robot39.Cog):
 
-    ### !--- INIT ---! ###
     def __init__(self, bot):
         self.bot = bot
 
@@ -639,6 +638,6 @@ class Duel(robot39.Cog):
     async def before_duel_loop(self):
         await self.bot.wait_until_ready()
 
-### !--- SETUP ---! ###
+
 def setup(bot):
     bot.add_cog(Duel(bot))

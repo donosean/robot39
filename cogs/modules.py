@@ -1,7 +1,6 @@
 import robot39
 import discord
 from discord.ext import commands
-
 import asyncio
 import csv
 from datetime import date

@@ -1,7 +1,7 @@
 import discord
-
 import math
 import psycopg2
+
 
 async def fetch_settings(self, guild_id):
     SQL = "SELECT * FROM duel_settings WHERE guild_id = %s;"
@@ -19,6 +19,7 @@ async def fetch_settings(self, guild_id):
         cursor.close()
     
     return duel_settings
+
 
 async def fetch_players(self, uid=None):
     SQL = "SELECT * FROM players"
@@ -42,6 +43,7 @@ async def fetch_players(self, uid=None):
     finally:
         cursor.close()
 
+
 async def is_registered(self, member):
     uid = member.id
     players = await self.fetch_players()
@@ -52,6 +54,7 @@ async def is_registered(self, member):
     else:
         registered_uids = [player[1] for player in players]
         return uid in registered_uids
+
 
 async def generate_rankings_embed(self, players):
     embed=discord.Embed(color=0x80ffff)
@@ -72,12 +75,14 @@ async def generate_rankings_embed(self, players):
 
     return embed
 
+
 async def calculate_elo(self, elo1, elo2, multiplier=1):
     power = (elo2 - elo1) / 400
     p1_chance = round(1 / (1 + math.pow(10, power)), 2)
     win_points = int(round((1 - p1_chance) * self.k_value, 0))
 
     return round(win_points * multiplier)
+
 
 async def update_points(self, uid, points, player_win):
     SQL = "UPDATE players SET points = %s"\
@@ -94,6 +99,7 @@ async def update_points(self, uid, points, player_win):
     finally:
         cursor.close()
 
+
 async def record_duel(self, win_id, win_points, lose_id, lose_points, change):
     SQL = "INSERT INTO duels"\
         + " (win_id, win_points, lose_id, lose_points, change)"\
@@ -109,6 +115,7 @@ async def record_duel(self, win_id, win_points, lose_id, lose_points, change):
 
     finally:
         cursor.close()
+
 
 async def update_dlc(self, user, action:str, dlc:str):
     #get player info & current DLC settings from db
