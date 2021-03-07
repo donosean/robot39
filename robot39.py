@@ -1,25 +1,22 @@
 import discord
 from discord.ext import commands
 
-COMMAND_PREFIX = '39!'
-INTENTS = discord.Intents.all()
-COGS_FILE = 'cogs.txt'
-TOKEN_FILE = 'token.txt'
+
 FILE_MISSING_ERROR = ('Error opening %s for reading, '
                       'please check this file exists.')
 
 
 class Robot39(commands.Bot):
 
-    def __init__(self):
-        super().__init__(command_prefix=COMMAND_PREFIX, intents=INTENTS)
+    def __init__(self, prefix, intents, cogs_file, token_file):
+        super().__init__(command_prefix=prefix, intents=intents)
         
         # Read cogs list from file
         try:
-            cogs_txt = open(COGS_FILE, "r")
+            cogs_txt = open(cogs_file, "r")
 
         except OSError:
-            print(FILE_MISSING_ERROR % COGS_FILE)
+            print(FILE_MISSING_ERROR % cogs_file)
             raise SystemExit
 
         cogs = cogs_txt.read().splitlines()
@@ -42,23 +39,25 @@ class Robot39(commands.Bot):
 
         # Read token from file
         try:
-            token_txt = open(TOKEN_FILE, "r")
+            token_txt = open(token_file, "r")
             
         except OSError:
-            print(FILE_MISSING_ERROR % TOKEN_FILE)
+            print(FILE_MISSING_ERROR % token_file)
             raise SystemExit
 
-        TOKEN = token_txt.read()
+        self.token = token_txt.read()
         token_txt.close()
 
         # Remove default help command and start the bot
         self.remove_command('help')
-        self.run(TOKEN)
     
     # Make database connection accessible across the entire bot
     @property
     def database(self):
         return self.get_cog('Database')
+    
+    def start_bot(self):
+        self.run(self.token)
 
 
 class Cog(commands.Cog):
@@ -77,7 +76,3 @@ class Cog(commands.Cog):
             self.log('Missing permissions to reply.')
         
         self.log(text)
-
-
-if __name__ == '__main__':
-    Robot39()
