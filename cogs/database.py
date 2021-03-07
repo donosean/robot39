@@ -1,12 +1,9 @@
 import robot39
-import discord
 from discord.ext import commands
-
 import psycopg2
 
+
 POSTGRES_FILE = 'postgres.txt'
-FILE_MISSING_ERROR = ('Error opening %s for reading, '
-                      'please check this file exists.')
 
 
 class Database(robot39.Cog):
@@ -19,7 +16,8 @@ class Database(robot39.Cog):
             postgres_txt = open(POSTGRES_FILE, "r")
 
         except OSError:
-            print(FILE_MISSING_ERROR % POSTGRES_FILE)
+            print('Error opening %s for reading, please check this file exists.'
+                  % POSTGRES_FILE)
             raise commands.ExtensionFailed
 
         postgres_txt = open(POSTGRES_FILE, "r")
